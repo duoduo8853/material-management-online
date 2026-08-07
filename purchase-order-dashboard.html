@@ -1,0 +1,2624 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>采购订单跟踪看板 — PO Tracking Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #f0f2f5;
+    --card-bg: #fff;
+    --text: #1a1a2e;
+    --text2: #555;
+    --text3: #888;
+    --border: #e8ecf1;
+    --red: #e74c3c;
+    --orange: #f39c12;
+    --green: #27ae60;
+    --blue: #2c6fce;
+    --purple: #8e44ad;
+    --teal: #16a085;
+    --radius: 10px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-hover: 0 4px 16px rgba(0,0,0,0.10);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  /* ── 布局 ── */
+  .app-layout { display: flex; min-height: calc(100vh - 52px); }
+
+  /* ── 左侧导航栏 ── */
+  .sidebar {
+    width: 200px;
+    min-width: 200px;
+    background: #1a1d29;
+    color: #b0b8c8;
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 52px;
+    height: calc(100vh - 52px);
+    overflow-y: auto;
+    z-index: 90;
+    transition: all .25s;
+  }
+  .sidebar::-webkit-scrollbar { width: 3px; }
+  .sidebar::-webkit-scrollbar-thumb { background: #3a3d4a; border-radius: 4px; }
+
+  .sidebar .nav-header {
+    padding: 16px 18px 10px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #5e6478;
+    font-weight: 600;
+  }
+  .sidebar .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 18px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: #a0a8ba;
+    border-left: 3px solid transparent;
+    transition: all .15s;
+    text-decoration: none;
+    position: relative;
+  }
+  .sidebar .nav-item:hover {
+    background: rgba(255,255,255,0.05);
+    color: #e0e4ec;
+  }
+  .sidebar .nav-item.active {
+    background: rgba(44,111,206,0.18);
+    color: #fff;
+    border-left-color: #2c6fce;
+    font-weight: 600;
+  }
+  .sidebar .nav-item .nav-icon {
+    font-size: 16px;
+    width: 22px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .sidebar .nav-item .nav-badge {
+    margin-left: auto;
+    background: #e74c3c;
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-weight: 600;
+    min-width: 20px;
+    text-align: center;
+  }
+  .sidebar .nav-item .nav-badge.warn { background: #f39c12; }
+  .sidebar .nav-item .nav-badge.info { background: #2c6fce; }
+
+  .sidebar .nav-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+    margin: 6px 14px;
+  }
+
+  /* 折叠按钮 */
+  .sidebar-toggle {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.06);
+    border: none;
+    color: #7a8090;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all .15s;
+  }
+  .sidebar-toggle:hover { background: rgba(255,255,255,0.12); color: #c0c6d4; }
+
+  /* 折叠状态 */
+  .sidebar.collapsed { width: 56px; min-width: 56px; }
+  .sidebar.collapsed .nav-item { padding: 11px 16px; justify-content: center; }
+  .sidebar.collapsed .nav-item .nav-icon { font-size: 18px; width: auto; }
+  .sidebar.collapsed .nav-item span:not(.nav-icon):not(.nav-badge) { display: none; }
+  .sidebar.collapsed .nav-header { display: none; }
+  .sidebar.collapsed .nav-badge { position: absolute; top: 6px; right: 6px; font-size: 9px; padding: 1px 5px; min-width: 14px; }
+
+  /* ── 主内容区 ── */
+  .main-content {
+    flex: 1;
+    overflow-y: auto;
+    height: calc(100vh - 52px);
+  }
+  .main-content::-webkit-scrollbar { width: 6px; }
+  .main-content::-webkit-scrollbar-thumb { background: #c1c7d0; border-radius: 4px; }
+
+  /* ── 模块页面 ── */
+  .module-page { display: none; }
+  .module-page.active { display: block; }
+  .module-page .container { padding-top: 14px; }
+
+  /* ── 页面标题 ── */
+  .page-hero {
+    background: linear-gradient(135deg, #1a3a5c 0%, #2c6fce 100%);
+    color: #fff;
+    padding: 20px 28px;
+    margin-bottom: 16px;
+  }
+  .page-hero h2 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .page-hero .subtitle { font-size: 12px; opacity: 0.8; }
+
+  /* ── 顶部标题栏 ── */
+  .header {
+    background: #fff;
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header h1 { font-size: 20px; font-weight: 700; }
+  .header h1 span { color: var(--blue); }
+  .header .info { display: flex; gap: 20px; align-items: center; font-size: 13px; color: var(--text2); }
+  .header .refresh-btn {
+    padding: 7px 18px;
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .header .refresh-btn:hover { opacity: 0.9; }
+
+  .container { max-width: 1500px; margin: 0 auto; padding: 18px 24px; }
+
+  /* ── 核心指标卡片 ── */
+  .metrics-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .metric-card {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-left: 4px solid transparent;
+    transition: all .2s;
+  }
+  .metric-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
+  .metric-card.red { border-left-color: var(--red); }
+  .metric-card.orange { border-left-color: var(--orange); }
+  .metric-card.blue { border-left-color: var(--blue); }
+  .metric-card.green { border-left-color: var(--green); }
+  .metric-card.teal { border-left-color: var(--teal); }
+  .metric-card .metric-label { font-size: 12px; color: var(--text3); font-weight: 500; }
+  .metric-card .metric-value { font-size: 28px; font-weight: 700; }
+  .metric-card .metric-sub { font-size: 11px; color: var(--text3); }
+  .metric-card.red .metric-value { color: var(--red); }
+  .metric-card.orange .metric-value { color: var(--orange); }
+  .metric-card.blue .metric-value { color: var(--blue); }
+  .metric-card.green .metric-value { color: var(--green); }
+  .metric-card.teal .metric-value { color: var(--teal); }
+
+  .metrics-row-extended {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  /* ── 两栏布局 ── */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+  }
+  .grid-2-1 {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+  }
+
+  /* ── 面板 ── */
+  .panel {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-body { padding: 14px 18px; }
+  .panel-body.no-pad { padding: 0; }
+
+  /* ── 表格 ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  table th {
+    background: #f8f9fb;
+    padding: 9px 8px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 11px;
+    color: var(--text2);
+    white-space: nowrap;
+    border-bottom: 2px solid var(--border);
+    position: sticky;
+    top: 0;
+  }
+  table td {
+    padding: 8px;
+    border-bottom: 1px solid #f1f3f5;
+    white-space: nowrap;
+  }
+  table tbody tr:hover { background: #fafbfc; }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-danger { background: #fde8e8; color: #c0392b; }
+  .badge-warning { background: #fef3e2; color: #e67e22; }
+  .badge-info { background: #e3f0fc; color: #2471a3; }
+  .badge-success { background: #e6f9ee; color: #1e8449; }
+  .badge-purple { background: #f3e8fa; color: #7d3c98; }
+  .badge-secondary { background: #eaedf1; color: #566573; }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+  }
+  .tag-urgent { background: var(--red); }
+  .tag-today { background: var(--orange); }
+  .tag-week { background: var(--blue); }
+  .tag-normal { background: #95a5a6; }
+
+  .link { color: var(--blue); cursor: pointer; text-decoration: underline; }
+  .link:hover { color: #1a5276; }
+
+  /* ── 滚动表格容器 ── */
+  .table-scroll {
+    max-height: 380px;
+    overflow-y: auto;
+  }
+  .table-scroll::-webkit-scrollbar { width: 5px; }
+  .table-scroll::-webkit-scrollbar-thumb { background: #c1c7d0; border-radius: 6px; }
+
+  /* ── 标签页 ── */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 14px;
+  }
+  .tab-btn {
+    padding: 8px 16px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text3);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all .15s;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+  /* ── 进度条 ── */
+  .progress-bar {
+    height: 8px;
+    background: #ecf0f1;
+    border-radius: 4px;
+    overflow: hidden;
+    min-width: 60px;
+  }
+  .progress-bar .fill { height: 100%; border-radius: 4px; transition: width .4s; }
+  .fill-green { background: var(--green); }
+  .fill-orange { background: var(--orange); }
+  .fill-red { background: var(--red); }
+  .fill-blue { background: var(--blue); }
+
+  /* ── 弹性行 ── */
+  .flex-between { display: flex; justify-content: space-between; align-items: center; }
+  .gap-sm { gap: 6px; }
+  .gap-md { gap: 12px; }
+
+  /* ── 响应式 ── */
+  @media (max-width: 1200px) {
+    .metrics-row { grid-template-columns: repeat(3, 1fr); }
+    .metrics-row-extended { grid-template-columns: repeat(3, 1fr); }
+    .grid-2, .grid-2-1 { grid-template-columns: 1fr; }
+    .grid-3 { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 768px) {
+    .metrics-row, .metrics-row-extended { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: 1fr; }
+    .container { padding: 10px; }
+  }
+
+  .highlight-row { background: #fff5f5 !important; }
+  .warn-row { background: #fffdf5 !important; }
+
+  .chart-wrap { position: relative; height: 260px; }
+  .chart-wrap.small { height: 200px; }
+  .chart-wrap canvas { width: 100% !important; height: 100% !important; }
+
+  .stat-inline {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-size: 13px;
+  }
+  .stat-inline .item { display: flex; gap: 4px; align-items: baseline; }
+  .stat-inline .item .num { font-size: 20px; font-weight: 700; }
+  .stat-inline .item .lbl { font-size: 11px; color: var(--text3); }
+
+  .empty-state {
+    text-align: center;
+    padding: 30px;
+    color: #b0b8c1;
+    font-size: 13px;
+  }
+
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .filter-bar select, .filter-bar input {
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 12px;
+    background: #fff;
+  }
+  .filter-bar select { min-width: 100px; }
+
+  /* ── 上传弹窗 ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.45);
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 700px;
+    max-height: 85vh;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-header {
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal-header h3 { font-size: 16px; }
+  .modal-close {
+    width: 30px; height: 30px;
+    border: none; background: #f0f2f5;
+    border-radius: 50%; cursor: pointer;
+    font-size: 16px; color: #666;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-close:hover { background: #e0e3e8; }
+  .modal-body { padding: 20px 22px; overflow-y: auto; flex: 1; }
+  .modal-footer {
+    padding: 14px 22px;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 10px; justify-content: flex-end;
+  }
+  .btn {
+    padding: 8px 18px; border-radius: 6px; border: none;
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s;
+  }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-primary:hover { background: #1a5cb0; }
+  .btn-outline { background: #fff; border: 1px solid var(--border); color: #42526e; }
+  .btn-outline:hover { background: #f4f5f7; }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-danger:hover { background: #c0392b; }
+
+  .upload-zone {
+    border: 2px dashed #d0d5dd;
+    border-radius: 10px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    background: #fafbfc;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--blue);
+    background: #f0f5ff;
+  }
+  .upload-zone .icon { font-size: 42px; margin-bottom: 10px; }
+  .upload-zone .title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .upload-zone .hint { font-size: 12px; color: #999; }
+  .upload-zone input[type=file] { display: none; }
+
+  .preview-table-wrap {
+    max-height: 250px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-top: 12px;
+  }
+  .preview-table-wrap table { font-size: 11px; }
+  .preview-table-wrap table th { position: sticky; top: 0; z-index: 1; }
+
+  .toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    padding: 12px 20px;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all .3s;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.success { background: #27ae60; }
+  .toast.error { background: #e74c3c; }
+  .toast.info { background: #2c6fce; }
+
+  .header .btn-group { display: flex; gap: 8px; }
+  .header .btn-sm {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all .15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .btn-download { background: #e8f0fe; color: var(--blue); }
+  .btn-download:hover { background: #d0e2fc; }
+  .btn-upload { background: #e6f9ee; color: var(--green); }
+  .btn-upload:hover { background: #c8f0d6; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ 顶部标题栏 ═══════════ -->
+<div class="header">
+  <div>
+    <h1>📦 <span>采购订单跟踪看板</span></h1>
+    <div style="font-size:12px;color:#888;margin-top:2px;">PO Tracking Dashboard · 实时监控采购订单执行状态</div>
+  </div>
+  <div class="info">
+    <div class="btn-group">
+      <button class="btn-sm btn-download" onclick="downloadTemplate()">📥 下载模板</button>
+      <button class="btn-sm btn-upload" onclick="openUploadModal()">📤 上传数据</button>
+    </div>
+    <span>🕐 数据更新：<strong id="updateTime">2026-07-20 09:30:00</strong></span>
+    <button class="refresh-btn" onclick="location.reload()">🔄 刷新数据</button>
+  </div>
+</div>
+
+<!-- ═══════════ 左侧导航 + 主内容布局 ═══════════ -->
+<div class="app-layout">
+
+  <!-- 左侧导航栏 -->
+  <nav class="sidebar" id="sidebar">
+    <div class="nav-header">📋 采购管理</div>
+    <div class="nav-item active" data-module="order" onclick="switchModule('order')">
+      <span class="nav-icon">📦</span> 订单跟踪
+      <span class="nav-badge">38</span>
+    </div>
+    <div class="nav-item" data-module="supplier" onclick="switchModule('supplier')">
+      <span class="nav-icon">🏭</span> 供应商管理
+      <span class="nav-badge warn">5</span>
+    </div>
+    <div class="nav-item" data-module="material" onclick="switchModule('material')">
+      <span class="nav-icon">🔩</span> 物料管理
+      <span class="nav-badge warn">12</span>
+    </div>
+
+    <div class="nav-divider"></div>
+    <div class="nav-header">📊 数据分析</div>
+
+    <div class="nav-item" data-module="price" onclick="switchModule('price')">
+      <span class="nav-icon">💹</span> 价格分析
+    </div>
+    <div class="nav-item" data-module="stock" onclick="switchModule('stock')">
+      <span class="nav-icon">🏗</span> 库存管理
+      <span class="nav-badge info">156</span>
+    </div>
+    <div class="nav-item" data-module="report" onclick="switchModule('report')">
+      <span class="nav-icon">📈</span> 报表中心
+    </div>
+
+    <div class="nav-divider"></div>
+    <div class="nav-header">⚙️ 系统工具</div>
+
+    <div class="nav-item" data-module="anomaly" onclick="switchModule('anomaly')">
+      <span class="nav-icon">🚨</span> 异常管理
+      <span class="nav-badge">21</span>
+    </div>
+
+    <button class="sidebar-toggle" onclick="toggleSidebar()" title="折叠导航">◀ 收起</button>
+  </nav>
+
+  <!-- 主内容区 -->
+  <div class="main-content">
+
+    <!-- ═══════════ 模块1：订单跟踪 ═══════════ -->
+    <div class="module-page active" id="mod-order">
+    <div class="container">
+
+<!-- ═══════════ 一、顶部核心指标 ═══════════ -->
+<div class="metrics-row">
+  <div class="metric-card blue">
+    <div class="metric-label">📋 采购订单总数</div>
+    <div class="metric-value">1,286</div>
+    <div class="metric-sub">月环比 ↑ 8.2%</div>
+  </div>
+  <div class="metric-card blue">
+    <div class="metric-label">💰 采购订单总金额</div>
+    <div class="metric-value">¥8,562万</div>
+    <div class="metric-sub">月环比 ↑ 5.1%</div>
+  </div>
+  <div class="metric-card orange">
+    <div class="metric-label">⏳ 待供应商确认</div>
+    <div class="metric-value">47</div>
+    <div class="metric-sub">占订单总数 3.7%</div>
+  </div>
+  <div class="metric-card orange">
+    <div class="metric-label">📦 待发货订单</div>
+    <div class="metric-value">89</div>
+    <div class="metric-sub">占已确认订单 12.4%</div>
+  </div>
+  <div class="metric-card teal">
+    <div class="metric-label">🚚 在途订单</div>
+    <div class="metric-value">156</div>
+    <div class="metric-sub">预计本周到货 62 单</div>
+  </div>
+</div>
+
+<div class="metrics-row-extended">
+  <div class="metric-card teal">
+    <div class="metric-label">📅 本周应到订单</div>
+    <div class="metric-value">62</div>
+    <div class="metric-sub">已到 18 单 · 将到 44 单</div>
+  </div>
+  <div class="metric-card red">
+    <div class="metric-label">⚠️ 延期订单数</div>
+    <div class="metric-value">38</div>
+    <div class="metric-sub">同比上月 ↑ 12%</div>
+  </div>
+  <div class="metric-card green">
+    <div class="metric-label">✅ 准时交付率</div>
+    <div class="metric-value">91.2%</div>
+    <div class="metric-sub">目标 ≥ 95% · 差 3.8pp</div>
+  </div>
+  <div class="metric-card red">
+    <div class="metric-label">💸 未交采购金额</div>
+    <div class="metric-value">¥1,247万</div>
+    <div class="metric-sub">涉及 203 笔订单</div>
+  </div>
+  <div class="metric-card green">
+    <div class="metric-label">📊 本月完成订单</div>
+    <div class="metric-value">214</div>
+    <div class="metric-sub">完成率 92.6%</div>
+  </div>
+</div>
+
+<!-- ═══════════ 二、采购订单状态分布 ═══════════ -->
+<div class="grid-2">
+  <div class="panel">
+    <div class="panel-header">📊 订单状态分布（按数量）</div>
+    <div class="panel-body">
+      <div class="chart-wrap"><canvas id="chartStatusCount"></canvas></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-header">💰 订单状态分布（按金额 · 万元）</div>
+    <div class="panel-body">
+      <div class="chart-wrap"><canvas id="chartStatusAmount"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- 未来7天到货趋势 -->
+<div class="panel" style="margin-bottom:18px;">
+  <div class="panel-header">📅 未来7天预计到货趋势</div>
+  <div class="panel-body">
+    <div class="chart-wrap small"><canvas id="chartArrivalTrend"></canvas></div>
+  </div>
+</div>
+
+<!-- ═══════════ 三、交期跟踪 ═══════════ -->
+<div class="grid-2">
+  <div class="panel">
+    <div class="panel-header">🎯 交期分类概览</div>
+    <div class="panel-body">
+      <div class="chart-wrap"><canvas id="chartDeliveryType"></canvas></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-header">⏱ 交期紧急程度分布</div>
+    <div class="panel-body">
+      <div class="table-scroll" style="max-height:260px;">
+        <table>
+          <thead>
+            <tr><th>分类</th><th>订单数</th><th>金额(万)</th><th>占比</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            <tr class="highlight-row">
+              <td>🔴 已延期</td><td><strong>38</strong></td><td>¥562</td>
+              <td><div class="progress-bar"><div class="fill fill-red" style="width:29%"></div></div> 2.9%</td>
+              <td><span class="link">查看</span></td>
+            </tr>
+            <tr class="warn-row">
+              <td>🟠 3天内到期</td><td><strong>24</strong></td><td>¥318</td>
+              <td><div class="progress-bar"><div class="fill fill-orange" style="width:19%"></div></div> 1.9%</td>
+              <td><span class="link">查看</span></td>
+            </tr>
+            <tr>
+              <td>🟡 7天内到期</td><td><strong>67</strong></td><td>¥892</td>
+              <td><div class="progress-bar"><div class="fill fill-blue" style="width:52%"></div></div> 5.2%</td>
+              <td><span class="link">查看</span></td>
+            </tr>
+            <tr>
+              <td>🟢 正常订单</td><td><strong>1,132</strong></td><td>¥6,510</td>
+              <td><div class="progress-bar"><div class="fill fill-green" style="width:88%"></div></div> 88.0%</td>
+              <td><span class="link">查看</span></td>
+            </tr>
+            <tr>
+              <td>🔵 提前到货</td><td><strong>25</strong></td><td>¥280</td>
+              <td><div class="progress-bar"><div class="fill fill-blue" style="width:20%"></div></div> 2.0%</td>
+              <td><span class="link">查看</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 交期变更统计 -->
+<div class="panel" style="margin-bottom:18px;">
+  <div class="panel-header">📝 交期变更记录（近30天）</div>
+  <div class="panel-body">
+    <div class="stat-inline">
+      <div class="item"><span class="num" style="color:var(--red)">47</span><span class="lbl">次交期变更</span></div>
+      <div class="item"><span class="num" style="color:var(--orange)">28</span><span class="lbl">涉及订单</span></div>
+      <div class="item"><span class="num">6.3</span><span class="lbl">天·平均延期</span></div>
+      <div class="item"><span class="num" style="color:var(--red)">15</span><span class="lbl">次变更≥2次</span></div>
+      <div class="item"><span class="num">12</span><span class="lbl">家供应商涉及</span></div>
+      <div style="font-size:11px; color: var(--text3); margin-left: auto;">
+        主要原因：产能不足 38% · 物流延迟 22% · 原材料短缺 18% · 其他 22%
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ 四、催货优先级清单 ═══════════ -->
+<div class="panel" style="margin-bottom:18px;">
+  <div class="panel-header">
+    🚨 催货优先级清单
+    <div style="display:flex;gap:8px;">
+      <span class="badge badge-danger">紧急催货 12</span>
+      <span class="badge badge-warning">今日跟进 18</span>
+      <span class="badge badge-info">本周关注 22</span>
+      <span class="badge badge-success">暂时正常 1,234</span>
+    </div>
+  </div>
+  <div class="panel-body no-pad">
+    <div class="table-scroll" style="max-height:420px;">
+      <table>
+        <thead>
+          <tr>
+            <th>优先级</th><th>采购订单号</th><th>供应商</th><th>物料名称</th>
+            <th>采购数量</th><th>未交数量</th><th>原承诺交期</th><th>最新承诺交期</th>
+            <th>延期天数</th><th>当前状态</th><th>影响程度</th><th>催货负责人</th>
+            <th>最近跟进</th><th>供应商回复</th><th>下一步动作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="highlight-row">
+            <td><span class="tag tag-urgent">紧急催货</span></td>
+            <td><span class="link">PO-2026-0892</span></td>
+            <td>深圳鑫达电子</td>
+            <td>MCU芯片 STM32F407</td>
+            <td>5,000</td>
+            <td><strong style="color:var(--red)">5,000</strong></td>
+            <td>2026-07-05</td>
+            <td>2026-07-28</td>
+            <td><strong style="color:var(--red)">15天</strong></td>
+            <td><span class="badge badge-danger">已延期</span></td>
+            <td>🔴 停产风险</td>
+            <td>张伟</td>
+            <td>07-19</td>
+            <td>产能紧张，排产中</td>
+            <td>升级至采购经理，要求书面承诺</td>
+          </tr>
+          <tr class="highlight-row">
+            <td><span class="tag tag-urgent">紧急催货</span></td>
+            <td><span class="link">PO-2026-0915</span></td>
+            <td>东莞精密模具</td>
+            <td>连接器壳体 A-200</td>
+            <td>20,000</td>
+            <td><strong style="color:var(--red)">12,000</strong></td>
+            <td>2026-07-10</td>
+            <td>未回复</td>
+            <td><strong style="color:var(--red)">10天</strong></td>
+            <td><span class="badge badge-danger">已延期</span></td>
+            <td>🔴 产线停线</td>
+            <td>李芳</td>
+            <td>07-20</td>
+            <td style="color:var(--red)">未回复</td>
+            <td>电话+邮件+现场拜访</td>
+          </tr>
+          <tr class="highlight-row">
+            <td><span class="tag tag-urgent">紧急催货</span></td>
+            <td><span class="link">PO-2026-0887</span></td>
+            <td>上海华威材料</td>
+            <td>特种合金板材 304L</td>
+            <td>800 kg</td>
+            <td><strong style="color:var(--red)">800 kg</strong></td>
+            <td>2026-07-12</td>
+            <td>2026-08-05</td>
+            <td><strong style="color:var(--red)">8天</strong></td>
+            <td><span class="badge badge-danger">已延期</span></td>
+            <td>🟠 项目延期</td>
+            <td>王强</td>
+            <td>07-19</td>
+            <td>原材料到货延迟</td>
+            <td>评估替代供应商</td>
+          </tr>
+          <tr class="warn-row">
+            <td><span class="tag tag-today">今日跟进</span></td>
+            <td><span class="link">PO-2026-0934</span></td>
+            <td>广州永利包装</td>
+            <td>定制纸箱 K-3型</td>
+            <td>50,000</td>
+            <td>30,000</td>
+            <td>2026-07-22</td>
+            <td>2026-07-22</td>
+            <td style="color:var(--orange)">2天后到期</td>
+            <td><span class="badge badge-warning">临期</span></td>
+            <td>🟡 包装线待料</td>
+            <td>赵敏</td>
+            <td>07-18</td>
+            <td>已排产，预计按时</td>
+            <td>每日跟进进度</td>
+          </tr>
+          <tr class="warn-row">
+            <td><span class="tag tag-today">今日跟进</span></td>
+            <td><span class="link">PO-2026-0941</span></td>
+            <td>苏州轴承厂</td>
+            <td>深沟球轴承 6205</td>
+            <td>3,000</td>
+            <td>2,000</td>
+            <td>2026-07-21</td>
+            <td>2026-07-23</td>
+            <td style="color:var(--orange)">3天后到期</td>
+            <td><span class="badge badge-warning">临期</span></td>
+            <td>🟡 装配线库存低</td>
+            <td>张伟</td>
+            <td>07-19</td>
+            <td>部分已发货</td>
+            <td>确认发货物流单号</td>
+          </tr>
+          <tr>
+            <td><span class="tag tag-week">本周关注</span></td>
+            <td><span class="link">PO-2026-0950</span></td>
+            <td>杭州电子科技</td>
+            <td>PCB主板 V2.1</td>
+            <td>2,000</td>
+            <td>500</td>
+            <td>2026-07-28</td>
+            <td>2026-07-28</td>
+            <td>8天后到期</td>
+            <td><span class="badge badge-info">正常</span></td>
+            <td>🟢 暂无风险</td>
+            <td>李芳</td>
+            <td>07-17</td>
+            <td>生产正常</td>
+            <td>周中确认进度</td>
+          </tr>
+          <tr>
+            <td><span class="tag tag-week">本周关注</span></td>
+            <td><span class="link">PO-2026-0956</span></td>
+            <td>成都光电科技</td>
+            <td>光纤模块 SFP+</td>
+            <td>800</td>
+            <td>800</td>
+            <td>2026-07-25</td>
+            <td>2026-07-26</td>
+            <td>6天后到期</td>
+            <td><span class="badge badge-info">正常</span></td>
+            <td>🟡 项目缓冲期</td>
+            <td>王强</td>
+            <td>07-16</td>
+            <td>测试完成，安排发货</td>
+            <td>跟踪物流</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ 五、到货完成情况 ═══════════ -->
+<div class="grid-2">
+  <div class="panel">
+    <div class="panel-header">📦 到货完成概览</div>
+    <div class="panel-body">
+      <div class="stat-inline" style="margin-bottom:12px;">
+        <div class="item"><span class="num">85.6%</span><span class="lbl">平均到货完成率</span></div>
+        <div class="item"><span class="num" style="color:var(--orange)">47</span><span class="lbl">部分到货订单</span></div>
+        <div class="item"><span class="num" style="color:var(--red)">18</span><span class="lbl">短交订单</span></div>
+        <div class="item"><span class="num">3</span><span class="lbl">多交订单</span></div>
+        <div class="item"><span class="num" style="color:var(--orange)">12</span><span class="lbl">到货未入库</span></div>
+      </div>
+      <div class="chart-wrap small"><canvas id="chartArrivalCompletion"></canvas></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-header">⚠️ 部分到货待补齐明细</div>
+    <div class="panel-body no-pad">
+      <div class="table-scroll" style="max-height:260px;">
+        <table>
+          <thead>
+            <tr><th>订单号</th><th>供应商</th><th>物料</th><th>采购数量</th><th>已到货</th><th>未交</th><th>完成率</th><th>最后到货</th><th>距今天数</th></tr>
+          </thead>
+          <tbody>
+            <tr class="highlight-row">
+              <td><span class="link">PO-2026-0823</span></td><td>深圳鑫达电子</td><td>MCU芯片</td>
+              <td>5,000</td><td>1,800</td><td><strong>3,200</strong></td>
+              <td><div class="progress-bar"><div class="fill fill-red" style="width:36%"></div></div> 36%</td>
+              <td>07-05</td><td style="color:var(--red)">15天</td>
+            </tr>
+            <tr class="warn-row">
+              <td><span class="link">PO-2026-0878</span></td><td>东莞精密模具</td><td>连接器壳体</td>
+              <td>20,000</td><td>8,000</td><td><strong>12,000</strong></td>
+              <td><div class="progress-bar"><div class="fill fill-orange" style="width:40%"></div></div> 40%</td>
+              <td>07-12</td><td style="color:var(--orange)">8天</td>
+            </tr>
+            <tr>
+              <td><span class="link">PO-2026-0899</span></td><td>广州永利包装</td><td>定制纸箱</td>
+              <td>50,000</td><td>20,000</td><td><strong>30,000</strong></td>
+              <td><div class="progress-bar"><div class="fill fill-orange" style="width:40%"></div></div> 40%</td>
+              <td>07-18</td><td style="color:var(--orange)">2天</td>
+            </tr>
+            <tr>
+              <td><span class="link">PO-2026-0910</span></td><td>苏州轴承厂</td><td>深沟球轴承</td>
+              <td>3,000</td><td>1,000</td><td><strong>2,000</strong></td>
+              <td><div class="progress-bar"><div class="fill fill-orange" style="width:33%"></div></div> 33%</td>
+              <td>07-15</td><td style="color:var(--orange)">5天</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ 六、供应商交付表现 ═══════════ -->
+<div class="grid-2">
+  <div class="panel">
+    <div class="panel-header">🏭 供应商延期排行（按延期订单数）</div>
+    <div class="panel-body">
+      <div class="chart-wrap"><canvas id="chartSupplierDelay"></canvas></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-header">📋 供应商交付表现明细</div>
+    <div class="panel-body no-pad">
+      <div class="table-scroll" style="max-height:260px;">
+        <table>
+          <thead>
+            <tr><th>供应商</th><th>订单数</th><th>采购金额(万)</th><th>准时率</th><th>延期订单</th><th>平均延期天</th><th>部分交付率</th><th>交期变更</th><th>未交金额(万)</th><th>评级</th></tr>
+          </thead>
+          <tbody>
+            <tr class="highlight-row">
+              <td>深圳鑫达电子</td><td>45</td><td>¥1,280</td><td style="color:var(--red)">71.1%</td><td><strong>13</strong></td><td>12.5天</td><td>28.9%</td><td>8次</td><td>¥380</td>
+              <td><span class="badge badge-danger">高风险</span></td>
+            </tr>
+            <tr class="warn-row">
+              <td>东莞精密模具</td><td>38</td><td>¥960</td><td style="color:var(--orange)">78.9%</td><td><strong>8</strong></td><td>9.2天</td><td>21.1%</td><td>5次</td><td>¥245</td>
+              <td><span class="badge badge-warning">关注</span></td>
+            </tr>
+            <tr>
+              <td>上海华威材料</td><td>22</td><td>¥520</td><td style="color:var(--orange)">81.8%</td><td><strong>4</strong></td><td>7.8天</td><td>18.2%</td><td>3次</td><td>¥156</td>
+              <td><span class="badge badge-warning">关注</span></td>
+            </tr>
+            <tr>
+              <td>广州永利包装</td><td>56</td><td>¥340</td><td>92.9%</td><td>4</td><td>5.2天</td><td>8.9%</td><td>2次</td><td>¥48</td>
+              <td><span class="badge badge-info">正常</span></td>
+            </tr>
+            <tr>
+              <td>苏州轴承厂</td><td>34</td><td>¥680</td><td>94.1%</td><td>2</td><td>3.5天</td><td>5.9%</td><td>1次</td><td>¥32</td>
+              <td><span class="badge badge-success">优秀</span></td>
+            </tr>
+            <tr>
+              <td>杭州电子科技</td><td>28</td><td>¥890</td><td style="color:var(--green)">96.4%</td><td>1</td><td>2.0天</td><td>7.1%</td><td>0次</td><td>¥18</td>
+              <td><span class="badge badge-success">优秀</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ 七、物料与品类风险 ═══════════ -->
+<div class="grid-2">
+  <div class="panel">
+    <div class="panel-header">🎯 物料风险矩阵</div>
+    <div class="panel-body">
+      <div class="chart-wrap"><canvas id="chartMaterialRisk"></canvas></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-header">⚠️ 高风险物料清单</div>
+    <div class="panel-body no-pad">
+      <div class="table-scroll" style="max-height:260px;">
+        <table>
+          <thead>
+            <tr><th>物料名称</th><th>未交数量</th><th>未交金额(万)</th><th>延期天数</th><th>风险等级</th><th>单一供应商</th><th>核心物料</th><th>生产影响</th></tr>
+          </thead>
+          <tbody>
+            <tr class="highlight-row">
+              <td>MCU芯片 STM32F407</td><td>5,000</td><td>¥185</td><td>15天</td>
+              <td><span class="badge badge-danger">严重</span></td><td>✅ 是</td><td>✅ 是</td><td>🔴 停产</td>
+            </tr>
+            <tr class="highlight-row">
+              <td>连接器壳体 A-200</td><td>12,000</td><td>¥96</td><td>10天</td>
+              <td><span class="badge badge-danger">严重</span></td><td>❌ 否</td><td>✅ 是</td><td>🔴 停线</td>
+            </tr>
+            <tr class="warn-row">
+              <td>特种合金板材 304L</td><td>800 kg</td><td>¥72</td><td>8天</td>
+              <td><span class="badge badge-warning">高</span></td><td>✅ 是</td><td>❌ 否</td><td>🟠 项目延期</td>
+            </tr>
+            <tr>
+              <td>定制纸箱 K-3型</td><td>30,000</td><td>¥18</td><td>0天</td>
+              <td><span class="badge badge-info">中</span></td><td>❌ 否</td><td>❌ 否</td><td>🟡 包装待料</td>
+            </tr>
+            <tr>
+              <td>深沟球轴承 6205</td><td>2,000</td><td>¥24</td><td>0天</td>
+              <td><span class="badge badge-info">中</span></td><td>❌ 否</td><td>✅ 是</td><td>🟡 库存预警</td>
+            </tr>
+            <tr>
+              <td>PCB主板 V2.1</td><td>500</td><td>¥45</td><td>0天</td>
+              <td><span class="badge badge-success">低</span></td><td>❌ 否</td><td>✅ 是</td><td>🟢 正常</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ 八、订单异常类型 ═══════════ -->
+<div class="grid-2">
+  <div class="panel">
+    <div class="panel-header">🔍 异常类型分布</div>
+    <div class="panel-body">
+      <div class="chart-wrap"><canvas id="chartAnomalyType"></canvas></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-header">📈 近6个月异常趋势</div>
+    <div class="panel-body">
+      <div class="chart-wrap"><canvas id="chartAnomalyTrend"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ 九、每日处理动作 ═══════════ -->
+<div class="panel" style="margin-bottom:18px; border: 2px solid var(--blue);">
+  <div class="panel-header" style="background: #e8f0fe;">
+    📌 今日处理动作清单 · <span style="color:var(--text2);font-weight:400;">2026年7月20日 星期一</span>
+  </div>
+  <div class="panel-body">
+    <div class="grid-3" style="margin-bottom:0;">
+      <!-- 今日催货 -->
+      <div style="border:1px solid #fde8e8;border-radius:8px;padding:12px;">
+        <h4 style="color:var(--red);margin-bottom:8px;">🚨 今日需要催货的订单 <span class="badge badge-danger">12</span></h4>
+        <div style="font-size:12px; line-height:2;">
+          <div>• <span class="link">PO-2026-0892</span> MCU芯片 — 延期15天，供应商未回复</div>
+          <div>• <span class="link">PO-2026-0915</span> 连接器壳体 — 延期10天，未回复需升级</div>
+          <div>• <span class="link">PO-2026-0887</span> 特种合金板材 — 延期8天</div>
+          <div>• <span class="link">PO-2026-0872</span> 电源模块 — 延期5天</div>
+          <div style="color:var(--text3);margin-top:4px;">... 还有 8 笔</div>
+        </div>
+      </div>
+
+      <!-- 今日确认 -->
+      <div style="border:1px solid #fef3e2;border-radius:8px;padding:12px;">
+        <h4 style="color:var(--orange);margin-bottom:8px;">📝 今日需要供应商确认的订单 <span class="badge badge-warning">8</span></h4>
+        <div style="font-size:12px; line-height:2;">
+          <div>• <span class="link">PO-2026-0981</span> 苏州轴承厂 — 新订单待确认</div>
+          <div>• <span class="link">PO-2026-0982</span> 杭州电子科技 — 待确认交期</div>
+          <div>• <span class="link">PO-2026-0985</span> 广州永利包装 — 数量变更待确认</div>
+          <div>• <span class="link">PO-2026-0990</span> 成都光电科技 — 价格变更待确认</div>
+          <div style="color:var(--text3);margin-top:4px;">... 还有 4 笔</div>
+        </div>
+      </div>
+
+      <!-- 临期发货 -->
+      <div style="border:1px solid #e3f0fc;border-radius:8px;padding:12px;">
+        <h4 style="color:var(--blue);margin-bottom:8px;">⏰ 3天内必须发货的订单 <span class="badge badge-info">6</span></h4>
+        <div style="font-size:12px; line-height:2;">
+          <div>• <span class="link">PO-2026-0934</span> 定制纸箱 — 2天后到期</div>
+          <div>• <span class="link">PO-2026-0941</span> 深沟球轴承 — 3天后到期</div>
+          <div>• <span class="link">PO-2026-0943</span> 密封圈 — 3天后到期</div>
+          <div>• <span class="link">PO-2026-0945</span> 紧固件 — 1天后到期</div>
+          <div style="color:var(--text3);margin-top:4px;">... 还有 2 笔</div>
+        </div>
+      </div>
+
+      <!-- 待补齐 -->
+      <div style="border:1px solid #e6f9ee;border-radius:8px;padding:12px;">
+        <h4 style="color:var(--green);margin-bottom:8px;">📦 部分到货待补齐的订单 <span class="badge badge-success">7</span></h4>
+        <div style="font-size:12px; line-height:2;">
+          <div>• <span class="link">PO-2026-0823</span> MCU芯片 — 已到36%，15天未补齐</div>
+          <div>• <span class="link">PO-2026-0878</span> 连接器壳体 — 已到40%</div>
+          <div>• <span class="link">PO-2026-0899</span> 定制纸箱 — 已到40%</div>
+          <div>• <span class="link">PO-2026-0910</span> 深沟球轴承 — 已到33%</div>
+          <div style="color:var(--text3);margin-top:4px;">... 还有 3 笔</div>
+        </div>
+      </div>
+
+      <!-- 升级处理 -->
+      <div style="border:1px solid #f3e8fa;border-radius:8px;padding:12px;">
+        <h4 style="color:var(--purple);margin-bottom:8px;">🆙 需要升级处理的重大异常 <span class="badge badge-purple">3</span></h4>
+        <div style="font-size:12px; line-height:2;">
+          <div>• <span class="link">PO-2026-0892</span> MCU芯片停产风险 → 升级采购经理</div>
+          <div>• <span class="link">PO-2026-0915</span> 供应商无回复 → 升级供应商管理</div>
+          <div>• <span class="link">PO-2026-0887</span> 单一供应商断供 → 升级供应链总监</div>
+        </div>
+      </div>
+
+      <!-- 可关闭 -->
+      <div style="border:1px solid #eaedf1;border-radius:8px;padding:12px;">
+        <h4 style="color:var(--text2);margin-bottom:8px;">✅ 可以关闭的已完成订单 <span class="badge badge-secondary">15</span></h4>
+        <div style="font-size:12px; line-height:2;">
+          <div>• <span class="link">PO-2026-0750~0764</span> 共15笔已完成且数量交齐</div>
+          <div style="color:var(--text3);margin-top:4px;">建议批量关闭，释放未交采购金额 ¥128万</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ 十、订单明细表 ═══════════ -->
+<div class="panel" style="margin-bottom:18px;">
+  <div class="panel-header">
+    📋 全部订单明细
+    <span style="font-weight:400;font-size:12px;color:var(--text3);">共 1,286 条记录</span>
+  </div>
+  <div class="panel-body no-pad">
+    <div style="padding:10px 14px;">
+      <div class="filter-bar">
+        <select><option>全部供应商</option><option>深圳鑫达电子</option><option>东莞精密模具</option><option>上海华威材料</option><option>广州永利包装</option><option>苏州轴承厂</option></select>
+        <select><option>全部采购员</option><option>张伟</option><option>李芳</option><option>王强</option><option>赵敏</option></select>
+        <select><option>全部状态</option><option>待审批</option><option>待供应商确认</option><option>已确认待生产</option><option>已生产待发货</option><option>已发货在途</option><option>部分到货</option><option>已完成</option><option>已延期</option><option>已取消</option></select>
+        <select><option>全部交期状态</option><option>已延期</option><option>3天内到期</option><option>7天内到期</option><option>正常</option></select>
+        <input type="text" placeholder="🔍 搜索订单号/物料名称...">
+        <button style="padding:5px 14px;background:var(--blue);color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;">查询</button>
+      </div>
+    </div>
+    <div class="table-scroll" style="max-height:500px;">
+      <table>
+        <thead>
+          <tr>
+            <th>采购订单号</th><th>采购申请号</th><th>供应商</th><th>物料编码</th><th>物料名称</th>
+            <th>规格型号</th><th>采购数量</th><th>单价</th><th>金额(万)</th>
+            <th>下单日期</th><th>要求到货</th><th>承诺到货</th><th>最新预计</th>
+            <th>实际到货</th><th>已到数量</th><th>未交数量</th><th>状态</th>
+            <th>延期天</th><th>负责人</th><th>异常原因</th><th>处理措施</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="highlight-row">
+            <td><span class="link">PO-2026-0892</span></td><td>PR-2026-1201</td><td>深圳鑫达电子</td><td>MAT-IC-0451</td><td>MCU芯片 STM32F407</td>
+            <td>LQFP-100</td><td>5,000</td><td>¥37.00</td><td>¥18.5</td>
+            <td>2026-06-20</td><td>2026-07-05</td><td>2026-07-05</td><td>2026-07-28</td>
+            <td>—</td><td>1,800</td><td>3,200</td>
+            <td><span class="badge badge-danger">已延期</span></td><td style="color:var(--red)">15</td><td>张伟</td>
+            <td>供应商产能不足</td><td>升级采购经理，评估替代供应商</td>
+          </tr>
+          <tr class="highlight-row">
+            <td><span class="link">PO-2026-0915</span></td><td>PR-2026-1234</td><td>东莞精密模具</td><td>MAT-CN-0234</td><td>连接器壳体 A-200</td>
+            <td>A-200型</td><td>20,000</td><td>¥4.80</td><td>¥9.6</td>
+            <td>2026-06-25</td><td>2026-07-10</td><td>2026-07-10</td><td>未回复</td>
+            <td>—</td><td>8,000</td><td>12,000</td>
+            <td><span class="badge badge-danger">已延期</span></td><td style="color:var(--red)">10</td><td>李芳</td>
+            <td>供应商无回复</td><td>电话+邮件+现场拜访</td>
+          </tr>
+          <tr class="warn-row">
+            <td><span class="link">PO-2026-0934</span></td><td>PR-2026-1267</td><td>广州永利包装</td><td>MAT-PK-0101</td><td>定制纸箱 K-3型</td>
+            <td>K-3</td><td>50,000</td><td>¥0.60</td><td>¥3.0</td>
+            <td>2026-07-05</td><td>2026-07-22</td><td>2026-07-22</td><td>2026-07-22</td>
+            <td>—</td><td>20,000</td><td>30,000</td>
+            <td><span class="badge badge-warning">临期</span></td><td>0</td><td>赵敏</td>
+            <td>部分发货中</td><td>每日跟进发货进度</td>
+          </tr>
+          <tr>
+            <td><span class="link">PO-2026-0950</span></td><td>PR-2026-1290</td><td>杭州电子科技</td><td>MAT-PCB-0088</td><td>PCB主板 V2.1</td>
+            <td>V2.1</td><td>2,000</td><td>¥225.00</td><td>¥45.0</td>
+            <td>2026-07-10</td><td>2026-07-28</td><td>2026-07-28</td><td>2026-07-28</td>
+            <td>—</td><td>1,500</td><td>500</td>
+            <td><span class="badge badge-info">正常</span></td><td>0</td><td>李芳</td>
+            <td>—</td><td>周中确认进度</td>
+          </tr>
+          <tr>
+            <td><span class="link">PO-2026-0812</span></td><td>PR-2026-1102</td><td>苏州轴承厂</td><td>MAT-BRG-0012</td><td>深沟球轴承 6205</td>
+            <td>6205-2RS</td><td>5,000</td><td>¥8.00</td><td>¥4.0</td>
+            <td>2026-06-10</td><td>2026-07-01</td><td>2026-07-01</td><td>2026-07-01</td>
+            <td>2026-07-01</td><td>5,000</td><td>0</td>
+            <td><span class="badge badge-success">已完成</span></td><td>0</td><td>张伟</td>
+            <td>—</td><td>已完成，可关闭</td>
+          </tr>
+          <tr>
+            <td><span class="link">PO-2026-0887</span></td><td>PR-2026-1190</td><td>上海华威材料</td><td>MAT-MTL-0033</td><td>特种合金板材 304L</td>
+            <td>304L-2mm</td><td>800 kg</td><td>¥90.00</td><td>¥7.2</td>
+            <td>2026-06-18</td><td>2026-07-12</td><td>2026-07-12</td><td>2026-08-05</td>
+            <td>—</td><td>0</td><td>800 kg</td>
+            <td><span class="badge badge-danger">已延期</span></td><td style="color:var(--red)">8</td><td>王强</td>
+            <td>原材料到货延迟</td><td>评估替代供应商</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="padding:10px 14px; display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--text3);">
+      <span>显示 1-6 / 共 1,286 条</span>
+      <div style="display:flex; gap:4px;">
+        <button style="padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:#fff;cursor:pointer;" disabled>上一页</button>
+        <button style="padding:4px 10px;background:var(--blue);color:#fff;border:none;border-radius:4px;cursor:pointer;">1</button>
+        <button style="padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:#fff;cursor:pointer;">2</button>
+        <button style="padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:#fff;cursor:pointer;">3</button>
+        <span style="padding:4px 6px;">...</span>
+        <button style="padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:#fff;cursor:pointer;">215</button>
+        <button style="padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:#fff;cursor:pointer;">下一页</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ 底部四张核心清单 ═══════════ -->
+<div class="grid-2">
+  <div class="panel" style="border-top: 3px solid var(--orange);">
+    <div class="panel-header">📝 待确认订单清单 <span class="badge badge-warning">47笔</span></div>
+    <div class="panel-body no-pad">
+      <div class="table-scroll" style="max-height:250px;">
+        <table>
+          <thead><tr><th>订单号</th><th>供应商</th><th>物料</th><th>数量</th><th>金额(万)</th><th>下单日期</th><th>等待天数</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr><td><span class="link">PO-2026-0981</span></td><td>苏州轴承厂</td><td>深沟球轴承 6205</td><td>3,000</td><td>¥2.4</td><td>07-18</td><td style="color:var(--orange)">2天</td><td><span class="link">催确认</span></td></tr>
+            <tr><td><span class="link">PO-2026-0982</span></td><td>杭州电子科技</td><td>PCB主板 V2.1</td><td>1,000</td><td>¥22.5</td><td>07-18</td><td style="color:var(--orange)">2天</td><td><span class="link">催确认</span></td></tr>
+            <tr><td><span class="link">PO-2026-0985</span></td><td>广州永利包装</td><td>定制纸箱 K-3型</td><td>30,000</td><td>¥1.8</td><td>07-17</td><td>3天</td><td><span class="link">催确认</span></td></tr>
+            <tr><td><span class="link">PO-2026-0990</span></td><td>成都光电科技</td><td>光纤模块 SFP+</td><td>500</td><td>¥8.5</td><td>07-16</td><td>4天</td><td><span class="link">催确认</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="border-top: 3px solid var(--orange);">
+    <div class="panel-header">⏰ 临期订单清单（7天内到期）<span class="badge badge-warning">91笔</span></div>
+    <div class="panel-body no-pad">
+      <div class="table-scroll" style="max-height:250px;">
+        <table>
+          <thead><tr><th>订单号</th><th>供应商</th><th>物料</th><th>未交数量</th><th>承诺交期</th><th>剩余天数</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr class="warn-row"><td><span class="link">PO-2026-0945</span></td><td>广州永利包装</td><td>紧固件 M8</td><td>5,000</td><td>07-21</td><td style="color:var(--red)">1天</td><td><span class="badge badge-warning">临期</span></td><td><span class="link">跟进</span></td></tr>
+            <tr class="warn-row"><td><span class="link">PO-2026-0934</span></td><td>广州永利包装</td><td>定制纸箱 K-3型</td><td>30,000</td><td>07-22</td><td style="color:var(--orange)">2天</td><td><span class="badge badge-warning">临期</span></td><td><span class="link">跟进</span></td></tr>
+            <tr><td><span class="link">PO-2026-0941</span></td><td>苏州轴承厂</td><td>深沟球轴承 6205</td><td>2,000</td><td>07-23</td><td style="color:var(--orange)">3天</td><td><span class="badge badge-info">正常</span></td><td><span class="link">跟进</span></td></tr>
+            <tr><td><span class="link">PO-2026-0956</span></td><td>成都光电科技</td><td>光纤模块 SFP+</td><td>800</td><td>07-26</td><td>6天</td><td><span class="badge badge-info">正常</span></td><td><span class="link">跟进</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="border-top: 3px solid var(--red);">
+    <div class="panel-header">🚨 延期订单清单 <span class="badge badge-danger">38笔</span></div>
+    <div class="panel-body no-pad">
+      <div class="table-scroll" style="max-height:250px;">
+        <table>
+          <thead><tr><th>订单号</th><th>供应商</th><th>物料</th><th>未交数量</th><th>原定交期</th><th>延期天数</th><th>影响</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr class="highlight-row"><td><span class="link">PO-2026-0892</span></td><td>深圳鑫达电子</td><td>MCU芯片</td><td>3,200</td><td>07-05</td><td style="color:var(--red)">15天</td><td>停产</td><td><span class="link">紧急处理</span></td></tr>
+            <tr class="highlight-row"><td><span class="link">PO-2026-0915</span></td><td>东莞精密模具</td><td>连接器壳体</td><td>12,000</td><td>07-10</td><td style="color:var(--red)">10天</td><td>停线</td><td><span class="link">紧急处理</span></td></tr>
+            <tr class="highlight-row"><td><span class="link">PO-2026-0887</span></td><td>上海华威材料</td><td>特种合金板材</td><td>800 kg</td><td>07-12</td><td style="color:var(--red)">8天</td><td>项目延期</td><td><span class="link">紧急处理</span></td></tr>
+            <tr><td><span class="link">PO-2026-0872</span></td><td>深圳鑫达电子</td><td>电源模块</td><td>2,000</td><td>07-15</td><td style="color:var(--red)">5天</td><td>预警</td><td><span class="link">跟进</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="border-top: 3px solid var(--red);">
+    <div class="panel-header">🆘 紧急催货清单 <span class="badge badge-danger">12笔</span></div>
+    <div class="panel-body no-pad">
+      <div class="table-scroll" style="max-height:250px;">
+        <table>
+          <thead><tr><th>订单号</th><th>供应商</th><th>物料</th><th>延期天</th><th>影响</th><th>供应商回复</th><th>负责人</th><th>动作</th></tr></thead>
+          <tbody>
+            <tr class="highlight-row"><td><span class="link">PO-2026-0892</span></td><td>深圳鑫达电子</td><td>MCU芯片</td><td>15天</td><td>停产</td><td style="color:var(--orange)">产能紧张</td><td>张伟</td><td><span class="link">升级处理</span></td></tr>
+            <tr class="highlight-row"><td><span class="link">PO-2026-0915</span></td><td>东莞精密模具</td><td>连接器壳体</td><td>10天</td><td>停线</td><td style="color:var(--red)">未回复</td><td>李芳</td><td><span class="link">现场拜访</span></td></tr>
+            <tr class="highlight-row"><td><span class="link">PO-2026-0887</span></td><td>上海华威材料</td><td>特种合金板材</td><td>8天</td><td>项目延期</td><td style="color:var(--orange)">原料延迟</td><td>王强</td><td><span class="link">替代评估</span></td></tr>
+            <tr><td><span class="link">PO-2026-0872</span></td><td>深圳鑫达电子</td><td>电源模块</td><td>5天</td><td>预警</td><td style="color:var(--orange)">排产中</td><td>张伟</td><td><span class="link">每日跟进</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- container end -->
+</div><!-- /mod-order -->
+
+<!-- ═══════════ 模块2：供应商管理 ═══════════ -->
+<div class="module-page" id="mod-supplier">
+<div class="page-hero">
+  <h2>🏭 供应商管理</h2>
+  <div class="subtitle">供应商全生命周期管理 · 准入 → 评估 → 分级 → 淘汰</div>
+</div>
+<div class="container">
+  <!-- 指标 -->
+  <div class="metrics-row">
+    <div class="metric-card blue"><div class="metric-label">合作供应商总数</div><div class="metric-value">86</div><div class="metric-sub">活跃 72 · 休眠 14</div></div>
+    <div class="metric-card green"><div class="metric-label">A级供应商</div><div class="metric-value">18</div><div class="metric-sub">占比 20.9%</div></div>
+    <div class="metric-card orange"><div class="metric-label">B级供应商</div><div class="metric-value">42</div><div class="metric-sub">占比 48.8%</div></div>
+    <div class="metric-card red"><div class="metric-label">C/D级供应商</div><div class="metric-value">12</div><div class="metric-sub">需重点关注</div></div>
+    <div class="metric-card teal"><div class="metric-label">本月新增准入</div><div class="metric-value">4</div><div class="metric-sub">审核中 2 家</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-header">📋 供应商评估排行 TOP 10</div>
+      <div class="panel-body no-pad">
+        <div class="table-scroll" style="max-height:340px;">
+          <table>
+            <thead><tr><th>排名</th><th>供应商名称</th><th>综合评分</th><th>质量</th><th>交期</th><th>价格</th><th>服务</th><th>合作年限</th><th>年采购额(万)</th><th>评级</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td>🥇</td><td>杭州电子科技</td><td><strong>96.4</strong></td><td>98</td><td>96</td><td>94</td><td>97</td><td>8年</td><td>¥890</td><td><span class="badge badge-success">A级</span></td><td><span class="link">详情</span></td></tr>
+              <tr><td>🥈</td><td>苏州轴承厂</td><td><strong>94.1</strong></td><td>95</td><td>94</td><td>92</td><td>95</td><td>6年</td><td>¥680</td><td><span class="badge badge-success">A级</span></td><td><span class="link">详情</span></td></tr>
+              <tr><td>🥉</td><td>成都光电科技</td><td><strong>92.8</strong></td><td>94</td><td>91</td><td>93</td><td>93</td><td>5年</td><td>¥520</td><td><span class="badge badge-success">A级</span></td><td><span class="link">详情</span></td></tr>
+              <tr><td>4</td><td>广州永利包装</td><td><strong>91.2</strong></td><td>90</td><td>93</td><td>90</td><td>91</td><td>10年</td><td>¥340</td><td><span class="badge badge-success">A级</span></td><td><span class="link">详情</span></td></tr>
+              <tr><td>5</td><td>武汉精密铸造</td><td><strong>89.5</strong></td><td>91</td><td>88</td><td>89</td><td>90</td><td>4年</td><td>¥420</td><td><span class="badge badge-info">B级</span></td><td><span class="link">详情</span></td></tr>
+              <tr class="warn-row"><td>12</td><td>东莞精密模具</td><td><strong>78.9</strong></td><td>82</td><td>75</td><td>85</td><td>76</td><td>3年</td><td>¥960</td><td><span class="badge badge-warning">B级</span></td><td><span class="link">详情</span></td></tr>
+              <tr class="highlight-row"><td>28</td><td>深圳鑫达电子</td><td><strong>71.1</strong></td><td>75</td><td>62</td><td>80</td><td>70</td><td>5年</td><td>¥1,280</td><td><span class="badge badge-danger">C级</span></td><td><span class="link">详情</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">📊 供应商准入与淘汰趋势</div>
+      <div class="panel-body">
+        <div class="chart-wrap"><canvas id="chartSupplierTrend"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div><!-- /mod-supplier -->
+
+<!-- ═══════════ 模块3：物料管理 ═══════════ -->
+<div class="module-page" id="mod-material">
+<div class="page-hero">
+  <h2>🔩 物料管理</h2>
+  <div class="subtitle">物料主数据 · 品类分析 · 风险监控 · 替代管理</div>
+</div>
+<div class="container">
+  <div class="metrics-row">
+    <div class="metric-card blue"><div class="metric-label">物料总数</div><div class="metric-value">3,842</div><div class="metric-sub">活跃 2,856 · 停用 986</div></div>
+    <div class="metric-card red"><div class="metric-label">核心物料</div><div class="metric-value">128</div><div class="metric-sub">缺料风险 6 种</div></div>
+    <div class="metric-card orange"><div class="metric-label">单一来源物料</div><div class="metric-value">47</div><div class="metric-sub">无替代供应商</div></div>
+    <div class="metric-card teal"><div class="metric-label">长周期物料</div><div class="metric-value">35</div><div class="metric-sub">采购周期 > 60天</div></div>
+    <div class="metric-card green"><div class="metric-label">有替代方案</div><div class="metric-value">82</div><div class="metric-sub">覆盖核心物料 64%</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-header">🎯 物料品类金额分布 (ABC分析)</div>
+      <div class="panel-body">
+        <div class="chart-wrap"><canvas id="chartMaterialABC"></canvas></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">⚠️ 高风险物料监控清单</div>
+      <div class="panel-body no-pad">
+        <div class="table-scroll" style="max-height:280px;">
+          <table>
+            <thead><tr><th>物料编码</th><th>物料名称</th><th>品类</th><th>年采购额(万)</th><th>供应商数</th><th>采购周期</th><th>当前库存</th><th>安全库存</th><th>风险等级</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr class="highlight-row"><td>MAT-IC-0451</td><td>MCU芯片 STM32F407</td><td>半导体</td><td>¥1,280</td><td>1</td><td>90天</td><td style="color:var(--red)">500</td><td>2,000</td><td><span class="badge badge-danger">严重</span></td><td><span class="link">处理</span></td></tr>
+              <tr class="highlight-row"><td>MAT-CN-0234</td><td>连接器壳体 A-200</td><td>连接器</td><td>¥960</td><td>2</td><td>45天</td><td style="color:var(--red)">3,200</td><td>10,000</td><td><span class="badge badge-danger">严重</span></td><td><span class="link">处理</span></td></tr>
+              <tr class="warn-row"><td>MAT-MTL-0033</td><td>特种合金板材 304L</td><td>金属材料</td><td>¥520</td><td>1</td><td>60天</td><td style="color:var(--orange)">200kg</td><td>500kg</td><td><span class="badge badge-warning">高</span></td><td><span class="link">处理</span></td></tr>
+              <tr><td>MAT-PCB-0088</td><td>PCB主板 V2.1</td><td>电子</td><td>¥890</td><td>3</td><td>30天</td><td>1,500</td><td>1,000</td><td><span class="badge badge-info">中</span></td><td><span class="link">关注</span></td></tr>
+              <tr><td>MAT-PK-0101</td><td>定制纸箱 K-3型</td><td>包装</td><td>¥340</td><td>4</td><td>15天</td><td>20,000</td><td>25,000</td><td><span class="badge badge-info">中</span></td><td><span class="link">关注</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div><!-- /mod-material -->
+
+<!-- ═══════════ 模块4：价格分析 ═══════════ -->
+<div class="module-page" id="mod-price">
+<div class="page-hero">
+  <h2>💹 价格分析</h2>
+  <div class="subtitle">采购价格趋势 · 成本分析 · 比价管理 · 降本追踪</div>
+</div>
+<div class="container">
+  <div class="metrics-row">
+    <div class="metric-card blue"><div class="metric-label">本月采购均价指数</div><div class="metric-value">102.3</div><div class="metric-sub">环比 ↑ 2.3%</div></div>
+    <div class="metric-card green"><div class="metric-label">累计降本金额</div><div class="metric-value">¥486万</div><div class="metric-sub">年度目标 ¥800万 · 完成60.8%</div></div>
+    <div class="metric-card orange"><div class="metric-label">价格上涨物料</div><div class="metric-value">47</div><div class="metric-sub">涨幅 > 5% 的 18 种</div></div>
+    <div class="metric-card red"><div class="metric-label">价格异常波动</div><div class="metric-value">8</div><div class="metric-sub">需核查的异常订单</div></div>
+    <div class="metric-card teal"><div class="metric-label">比价节约率</div><div class="metric-value">12.6%</div><div class="metric-sub">同比 ↑ 1.8pp</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-header">📈 核心物料价格走势（近12个月）</div>
+      <div class="panel-body">
+        <div class="chart-wrap"><canvas id="chartPriceTrend"></canvas></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">🔍 近期价格变更记录</div>
+      <div class="panel-body no-pad">
+        <div class="table-scroll" style="max-height:280px;">
+          <table>
+            <thead><tr><th>物料名称</th><th>供应商</th><th>原价</th><th>新价</th><th>涨幅</th><th>变更日期</th><th>原因</th><th>审批状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr class="highlight-row"><td>MCU芯片 STM32F407</td><td>深圳鑫达电子</td><td>¥35.00</td><td>¥37.00</td><td style="color:var(--red)">+5.7%</td><td>07-15</td><td>原材料涨价</td><td><span class="badge badge-warning">待审批</span></td><td><span class="link">核查</span></td></tr>
+              <tr class="warn-row"><td>连接器壳体 A-200</td><td>东莞精密模具</td><td>¥4.50</td><td>¥4.80</td><td style="color:var(--red)">+6.7%</td><td>07-12</td><td>人工成本</td><td><span class="badge badge-success">已审批</span></td><td><span class="link">查看</span></td></tr>
+              <tr><td>特种合金板材 304L</td><td>上海华威材料</td><td>¥85.00</td><td>¥90.00</td><td style="color:var(--red)">+5.9%</td><td>07-08</td><td>市场行情</td><td><span class="badge badge-success">已审批</span></td><td><span class="link">查看</span></td></tr>
+              <tr><td>深沟球轴承 6205</td><td>苏州轴承厂</td><td>¥8.00</td><td>¥7.60</td><td style="color:var(--green)">-5.0%</td><td>07-01</td><td>年度降价</td><td><span class="badge badge-success">已审批</span></td><td><span class="link">查看</span></td></tr>
+              <tr><td>光纤模块 SFP+</td><td>成都光电科技</td><td>¥165.00</td><td>¥170.00</td><td style="color:var(--red)">+3.0%</td><td>06-28</td><td>汇率影响</td><td><span class="badge badge-success">已审批</span></td><td><span class="link">查看</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div><!-- /mod-price -->
+
+<!-- ═══════════ 模块5：库存管理 ═══════════ -->
+<div class="module-page" id="mod-stock">
+<div class="page-hero">
+  <h2>🏗 库存管理</h2>
+  <div class="subtitle">实时库存监控 · 安全库存预警 · 周转分析 · 呆滞管理</div>
+</div>
+<div class="container">
+  <div class="metrics-row">
+    <div class="metric-card blue"><div class="metric-label">库存总金额</div><div class="metric-value">¥3,286万</div><div class="metric-sub">较月初 ↓ 2.1%</div></div>
+    <div class="metric-card red"><div class="metric-label">低于安全库存</div><div class="metric-value">24</div><div class="metric-sub">涉及 18 种物料</div></div>
+    <div class="metric-card orange"><div class="metric-label">呆滞库存 (>90天)</div><div class="metric-value">¥186万</div><div class="metric-sub">占比 5.7%</div></div>
+    <div class="metric-card green"><div class="metric-label">库存周转天数</div><div class="metric-value">42天</div><div class="metric-sub">目标 ≤ 45天 ✅</div></div>
+    <div class="metric-card teal"><div class="metric-label">在途库存金额</div><div class="metric-value">¥1,240万</div><div class="metric-sub">预计7天内到货 ¥380万</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-header">📊 库存水位概览（按品类）</div>
+      <div class="panel-body">
+        <div class="chart-wrap"><canvas id="chartStockLevel"></canvas></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">⚠️ 库存预警清单</div>
+      <div class="panel-body no-pad">
+        <div class="table-scroll" style="max-height:280px;">
+          <table>
+            <thead><tr><th>物料名称</th><th>当前库存</th><th>安全库存</th><th>差值</th><th>日均消耗</th><th>可用天数</th><th>在途数量</th><th>预警等级</th><th>建议动作</th></tr></thead>
+            <tbody>
+              <tr class="highlight-row"><td>MCU芯片 STM32F407</td><td style="color:var(--red)">500</td><td>2,000</td><td style="color:var(--red)">-1,500</td><td>200</td><td style="color:var(--red)">2.5天</td><td>0</td><td><span class="badge badge-danger">紧急</span></td><td>立即采购</td></tr>
+              <tr class="highlight-row"><td>连接器壳体 A-200</td><td style="color:var(--red)">3,200</td><td>10,000</td><td style="color:var(--red)">-6,800</td><td>2,000</td><td style="color:var(--red)">1.6天</td><td>0</td><td><span class="badge badge-danger">紧急</span></td><td>立即采购</td></tr>
+              <tr class="warn-row"><td>特种合金板材 304L</td><td style="color:var(--orange)">200kg</td><td>500kg</td><td style="color:var(--orange)">-300kg</td><td>50kg</td><td style="color:var(--orange)">4天</td><td>800kg</td><td><span class="badge badge-warning">预警</span></td><td>跟踪在途</td></tr>
+              <tr><td>深沟球轴承 6205</td><td>2,800</td><td>3,000</td><td style="color:var(--orange)">-200</td><td>500</td><td>5.6天</td><td>2,000</td><td><span class="badge badge-warning">预警</span></td><td>跟踪在途</td></tr>
+              <tr><td>定制纸箱 K-3型</td><td>20,000</td><td>25,000</td><td>-5,000</td><td>5,000</td><td>4天</td><td>30,000</td><td><span class="badge badge-info">关注</span></td><td>跟踪在途</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div><!-- /mod-stock -->
+
+<!-- ═══════════ 模块6：报表中心 ═══════════ -->
+<div class="module-page" id="mod-report">
+<div class="page-hero">
+  <h2>📈 报表中心</h2>
+  <div class="subtitle">自定义报表 · 定时推送 · 数据导出 · 分析洞察</div>
+</div>
+<div class="container">
+  <div class="grid-3" style="margin-bottom:18px;">
+    <div class="panel" style="cursor:pointer;" onclick="showToast('正在生成采购订单汇总报表...','info')">
+      <div class="panel-body" style="text-align:center;padding:24px;">
+        <div style="font-size:36px;margin-bottom:8px;">📋</div>
+        <div style="font-weight:600;font-size:14px;">采购订单汇总表</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">按月/季/年汇总 · 支持多维度</div>
+        <div style="margin-top:10px;"><span class="badge badge-info">常用</span></div>
+      </div>
+    </div>
+    <div class="panel" style="cursor:pointer;" onclick="showToast('正在生成供应商绩效报表...','info')">
+      <div class="panel-body" style="text-align:center;padding:24px;">
+        <div style="font-size:36px;margin-bottom:8px;">🏭</div>
+        <div style="font-weight:600;font-size:14px;">供应商绩效报表</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">交付/质量/价格综合评分</div>
+        <div style="margin-top:10px;"><span class="badge badge-info">常用</span></div>
+      </div>
+    </div>
+    <div class="panel" style="cursor:pointer;" onclick="showToast('正在生成库存周转分析报表...','info')">
+      <div class="panel-body" style="text-align:center;padding:24px;">
+        <div style="font-size:36px;margin-bottom:8px;">📦</div>
+        <div style="font-weight:600;font-size:14px;">库存周转分析表</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">周转天数 · 呆滞预警</div>
+        <div style="margin-top:10px;"><span class="badge badge-info">月度</span></div>
+      </div>
+    </div>
+    <div class="panel" style="cursor:pointer;" onclick="showToast('正在生成采购价格分析报表...','info')">
+      <div class="panel-body" style="text-align:center;padding:24px;">
+        <div style="font-size:36px;margin-bottom:8px;">💹</div>
+        <div style="font-weight:600;font-size:14px;">采购价格分析表</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">价格趋势 · 降本追踪</div>
+        <div style="margin-top:10px;"><span class="badge badge-info">月度</span></div>
+      </div>
+    </div>
+    <div class="panel" style="cursor:pointer;" onclick="showToast('正在生成异常订单追踪报表...','info')">
+      <div class="panel-body" style="text-align:center;padding:24px;">
+        <div style="font-size:36px;margin-bottom:8px;">🚨</div>
+        <div style="font-weight:600;font-size:14px;">异常订单追踪表</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">延期/短交/质量异常</div>
+        <div style="margin-top:10px;"><span class="badge badge-danger">实时</span></div>
+      </div>
+    </div>
+    <div class="panel" style="cursor:pointer;" onclick="showToast('正在生成物料需求预测报表...','info')">
+      <div class="panel-body" style="text-align:center;padding:24px;">
+        <div style="font-size:36px;margin-bottom:8px;">🔮</div>
+        <div style="font-weight:600;font-size:14px;">物料需求预测表</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">基于MRP的智能预测</div>
+        <div style="margin-top:10px;"><span class="badge badge-success">AI</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">📅 定时推送报表</div>
+    <div class="panel-body no-pad">
+      <div class="table-scroll" style="max-height:200px;">
+        <table>
+          <thead><tr><th>报表名称</th><th>推送频率</th><th>推送时间</th><th>接收人</th><th>格式</th><th>状态</th><th>最近推送</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr><td>每日采购订单状态汇总</td><td>每天</td><td>08:30</td><td>采购部全员</td><td>邮件+看板</td><td><span class="badge badge-success">启用</span></td><td>07:20 08:30</td><td><span class="link">编辑</span> | <span class="link">停用</span></td></tr>
+            <tr><td>每周供应商交付周报</td><td>每周一</td><td>09:00</td><td>采购经理</td><td>邮件+PDF</td><td><span class="badge badge-success">启用</span></td><td>07-14 09:00</td><td><span class="link">编辑</span> | <span class="link">停用</span></td></tr>
+            <tr><td>月度采购分析月报</td><td>每月1日</td><td>10:00</td><td>采购总监</td><td>邮件+PDF+PPT</td><td><span class="badge badge-success">启用</span></td><td>07-01 10:00</td><td><span class="link">编辑</span> | <span class="link">停用</span></td></tr>
+            <tr><td>库存预警实时推送</td><td>实时</td><td>—</td><td>采购员+仓管</td><td>企微/钉钉</td><td><span class="badge badge-success">启用</span></td><td>07-20 06:15</td><td><span class="link">编辑</span> | <span class="link">停用</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+</div><!-- /mod-report -->
+
+<!-- ═══════════ 模块7：异常管理 ═══════════ -->
+<div class="module-page" id="mod-anomaly">
+<div class="page-hero">
+  <h2>🚨 异常管理</h2>
+  <div class="subtitle">异常订单追踪 · 问题闭环 · 根因分析 · 改进措施</div>
+</div>
+<div class="container">
+  <div class="metrics-row">
+    <div class="metric-card red"><div class="metric-label">当前活跃异常</div><div class="metric-value">21</div><div class="metric-sub">待处理 15 · 处理中 6</div></div>
+    <div class="metric-card blue"><div class="metric-label">本月累计异常</div><div class="metric-value">87</div><div class="metric-sub">已关闭 66 · 关闭率 75.9%</div></div>
+    <div class="metric-card orange"><div class="metric-label">平均处理时长</div><div class="metric-value">3.2天</div><div class="metric-sub">目标 ≤ 2天 ⚠️</div></div>
+    <div class="metric-card red"><div class="metric-label">超期未处理</div><div class="metric-value">5</div><div class="metric-sub">>7天未关闭</div></div>
+    <div class="metric-card teal"><div class="metric-label">本月升级处理</div><div class="metric-value">3</div><div class="metric-sub">已升级至管理层</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-header">🔍 活跃异常清单</div>
+      <div class="panel-body no-pad">
+        <div class="table-scroll" style="max-height:340px;">
+          <table>
+            <thead><tr><th>异常编号</th><th>关联订单</th><th>异常类型</th><th>供应商</th><th>发现时间</th><th>严重程度</th><th>处理人</th><th>状态</th><th>距今</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr class="highlight-row"><td>EX-2026-0156</td><td><span class="link">PO-2026-0892</span></td><td>超期未到货</td><td>深圳鑫达电子</td><td>07-05</td><td><span class="badge badge-danger">严重</span></td><td>张伟</td><td><span class="badge badge-danger">处理中</span></td><td>15天</td><td><span class="link">跟进</span></td></tr>
+              <tr class="highlight-row"><td>EX-2026-0158</td><td><span class="link">PO-2026-0915</span></td><td>供应商无回复</td><td>东莞精密模具</td><td>07-10</td><td><span class="badge badge-danger">严重</span></td><td>李芳</td><td><span class="badge badge-danger">处理中</span></td><td>10天</td><td><span class="link">升级</span></td></tr>
+              <tr class="warn-row"><td>EX-2026-0162</td><td><span class="link">PO-2026-0887</span></td><td>交期频繁变更</td><td>上海华威材料</td><td>07-12</td><td><span class="badge badge-warning">高</span></td><td>王强</td><td><span class="badge badge-warning">待处理</span></td><td>8天</td><td><span class="link">处理</span></td></tr>
+              <tr><td>EX-2026-0168</td><td><span class="link">PO-2026-0823</span></td><td>到货数量不足</td><td>深圳鑫达电子</td><td>07-14</td><td><span class="badge badge-info">中</span></td><td>赵敏</td><td><span class="badge badge-info">处理中</span></td><td>6天</td><td><span class="link">跟进</span></td></tr>
+              <tr><td>EX-2026-0172</td><td><span class="link">PO-2026-0878</span></td><td>到货后未入库</td><td>东莞精密模具</td><td>07-17</td><td><span class="badge badge-info">中</span></td><td>张伟</td><td><span class="badge badge-warning">待处理</span></td><td>3天</td><td><span class="link">催办</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">📈 异常趋势与根因分析</div>
+      <div class="panel-body">
+        <div class="chart-wrap"><canvas id="chartAnomalyRoot"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div><!-- /mod-anomaly -->
+
+</div><!-- /main-content -->
+</div><!-- /app-layout -->
+
+<!-- ═══════════ 上传数据弹窗 ═══════════ -->
+<div class="modal-overlay" id="uploadModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>📤 上传采购订单数据</h3>
+      <button class="modal-close" onclick="closeUploadModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- 步骤1: 上传区域 -->
+      <div id="uploadStep1">
+        <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+          <div class="icon">📁</div>
+          <div class="title">点击上传 或拖拽文件到此处</div>
+          <div class="hint">支持 .csv / .xlsx / .xls 格式，最大 10MB</div>
+          <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)">
+        </div>
+        <div style="margin-top:14px; padding:12px; background:#f8f9fb; border-radius:6px; font-size:12px; color:#666;">
+          <strong>💡 提示：</strong> 请先 <span class="link" onclick="downloadTemplate()">下载模板</span> 按格式填写数据后再上传。表头字段需与模板一致，系统将自动识别并更新看板数据。
+        </div>
+      </div>
+      <!-- 步骤2: 预览确认 -->
+      <div id="uploadStep2" style="display:none;">
+        <div style="margin-bottom:12px; font-size:14px;">
+          ✅ 已识别 <strong id="previewCount">0</strong> 条订单数据
+          <span style="font-size:12px;color:var(--text3);margin-left:8px;" id="previewFileName"></span>
+        </div>
+        <div class="preview-table-wrap" id="previewTableWrap"></div>
+        <div style="margin-top:10px; font-size:12px; color:var(--text3);">
+          确认无误后点击「导入数据」，看板将基于新数据重新渲染。
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeUploadModal()">取消</button>
+      <button class="btn btn-outline" onclick="downloadTemplate()" style="margin-right:auto;">📥 下载模板</button>
+      <button class="btn btn-primary" id="btnImport" style="display:none;" onclick="importData()">✅ 导入数据</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast 提示 -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════ Chart.js 图表脚本 ═══════════ -->
+<script>
+// 配色
+const COLORS = {
+  blue:'#2c6fce', green:'#27ae60', orange:'#f39c12', red:'#e74c3c',
+  purple:'#8e44ad', teal:'#16a085', gray:'#95a5a6',
+  blueL:'rgba(44,111,206,0.7)', greenL:'rgba(39,174,96,0.7)',
+  orangeL:'rgba(243,156,18,0.7)', redL:'rgba(231,76,60,0.7)',
+};
+
+// 通用配置
+function baseOpts(isBar) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 12, padding: 16, font: { size: 11 } } }
+    },
+    scales: isBar ? {
+      x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      y: { beginAtZero: true, grid: { color: '#f1f3f5' }, ticks: { font: { size: 10 } } }
+    } : undefined
+  };
+}
+
+// 1. 订单状态分布（按数量）
+new Chart(document.getElementById('chartStatusCount'), {
+  type: 'doughnut',
+  data: {
+    labels: ['待审批','待供应商确认','已确认待生产','已生产待发货','已发货在途','部分到货','已完成','已延期','已取消'],
+    datasets: [{
+      data: [23, 47, 86, 89, 156, 47, 756, 38, 44],
+      backgroundColor: ['#bdc3c7','#f39c12','#3498db','#2980b9','#16a085','#e67e22','#27ae60','#e74c3c','#95a5a6'],
+      borderWidth: 2,
+      borderColor: '#fff'
+    }]
+  },
+  options: { ...baseOpts(false), cutout: '55%' }
+});
+
+// 2. 订单状态分布（按金额）
+new Chart(document.getElementById('chartStatusAmount'), {
+  type: 'doughnut',
+  data: {
+    labels: ['待审批','待供应商确认','已确认待生产','已生产待发货','已发货在途','部分到货','已完成','已延期','已取消'],
+    datasets: [{
+      data: [186, 320, 580, 610, 1240, 420, 4520, 562, 124],
+      backgroundColor: ['#bdc3c7','#f39c12','#3498db','#2980b9','#16a085','#e67e22','#27ae60','#e74c3c','#95a5a6'],
+      borderWidth: 2,
+      borderColor: '#fff'
+    }]
+  },
+  options: { ...baseOpts(false), cutout: '55%' }
+});
+
+// 3. 未来7天到货趋势
+new Chart(document.getElementById('chartArrivalTrend'), {
+  type: 'bar',
+  data: {
+    labels: ['7/21 周一','7/22 周二','7/23 周三','7/24 周四','7/25 周五','7/26 周六','7/27 周日'],
+    datasets: [
+      { label: '预计到货(单)', data: [8, 12, 15, 10, 9, 5, 3], backgroundColor: COLORS.blueL, borderRadius: 4 },
+      { label: '实际到货(单)', data: [8, 11, 14, 0, 0, 0, 0], backgroundColor: COLORS.greenL, borderRadius: 4 }
+    ]
+  },
+  options: baseOpts(true)
+});
+
+// 4. 交期分类
+new Chart(document.getElementById('chartDeliveryType'), {
+  type: 'pie',
+  data: {
+    labels: ['已延期 38','3天内到期 24','7天内到期 67','正常 1,132','提前到货 25'],
+    datasets: [{
+      data: [38, 24, 67, 1132, 25],
+      backgroundColor: ['#e74c3c','#f39c12','#3498db','#27ae60','#16a085'],
+      borderWidth: 2,
+      borderColor: '#fff'
+    }]
+  },
+  options: baseOpts(false)
+});
+
+// 5. 到货完成情况
+new Chart(document.getElementById('chartArrivalCompletion'), {
+  type: 'bar',
+  data: {
+    labels: ['已完成','部分到货','在途','待发货','短交','多交'],
+    datasets: [{
+      label: '订单数',
+      data: [756, 47, 156, 89, 18, 3],
+      backgroundColor: ['#27ae60','#f39c12','#3498db','#95a5a6','#e74c3c','#8e44ad'].map(c => c+'99'),
+      borderRadius: 4
+    }]
+  },
+  options: baseOpts(true)
+});
+
+// 6. 供应商延期排行
+new Chart(document.getElementById('chartSupplierDelay'), {
+  type: 'bar',
+  data: {
+    labels: ['深圳鑫达','东莞精密','上海华威','广州永利','苏州轴承','杭州电子'],
+    datasets: [
+      { label: '延期订单', data: [13, 8, 4, 4, 2, 1], backgroundColor: COLORS.redL, borderRadius: 4 },
+      { label: '准时订单', data: [32, 30, 18, 52, 32, 27], backgroundColor: COLORS.greenL, borderRadius: 4 }
+    ]
+  },
+  options: { ...baseOpts(true), scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, grid: { color: '#f1f3f5' } } } }
+});
+
+// 7. 物料风险
+new Chart(document.getElementById('chartMaterialRisk'), {
+  type: 'bubble',
+  data: {
+    datasets: [
+      { label: 'MCU芯片', data: [{x:15,y:185,r:18}], backgroundColor: COLORS.redL },
+      { label: '连接器壳体', data: [{x:10,y:96,r:14}], backgroundColor: COLORS.redL },
+      { label: '特种合金板材', data: [{x:8,y:72,r:12}], backgroundColor: COLORS.orangeL },
+      { label: '深沟球轴承', data: [{x:0,y:24,r:8}], backgroundColor: COLORS.blueL },
+      { label: 'PCB主板', data: [{x:0,y:45,r:10}], backgroundColor: COLORS.greenL },
+      { label: '光纤模块', data: [{x:0,y:32,r:7}], backgroundColor: COLORS.teal+'99' },
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: { title: { display: true, text: '延期天数', font:{size:11} }, grid: { color: '#f1f3f5' } },
+      y: { title: { display: true, text: '未交金额(万)', font:{size:11} }, grid: { color: '#f1f3f5' } }
+    },
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+      tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: 延期${ctx.raw.x}天, ¥${ctx.raw.y}万` } }
+    }
+  }
+});
+
+// 8. 异常类型分布
+new Chart(document.getElementById('chartAnomalyType'), {
+  type: 'bar',
+  data: {
+    labels: ['供应商未确认','未排产','临期未发货','物流停滞','超期未到货','数量不足','到货未入库','交期频繁变更','数量变更','价格变更','供应商无回复'],
+    datasets: [{
+      label: '异常数量', data: [47, 12, 24, 8, 38, 18, 12, 28, 6, 3, 5],
+      backgroundColor: [
+        '#f39c12','#e67e22','#f1c40f','#3498db','#e74c3c','#e74c3c',
+        '#16a085','#8e44ad','#95a5a6','#95a5a6','#c0392b'
+      ],
+      borderRadius: 4
+    }]
+  },
+  options: { ...baseOpts(true), indexAxis: 'y' }
+});
+
+// 9. 异常趋势
+new Chart(document.getElementById('chartAnomalyTrend'), {
+  type: 'line',
+  data: {
+    labels: ['2月','3月','4月','5月','6月','7月'],
+    datasets: [
+      { label: '延期订单', data: [28, 32, 30, 35, 34, 38], borderColor: COLORS.red, backgroundColor: 'transparent', tension: 0.3 },
+      { label: '临期未发货', data: [18, 22, 20, 24, 22, 24], borderColor: COLORS.orange, backgroundColor: 'transparent', tension: 0.3 },
+      { label: '交期变更', data: [12, 15, 18, 22, 25, 28], borderColor: COLORS.purple, backgroundColor: 'transparent', tension: 0.3 },
+      { label: '数量不足', data: [14, 15, 16, 17, 18, 18], borderColor: COLORS.teal, backgroundColor: 'transparent', tension: 0.3 }
+    ]
+  },
+  options: { ...baseOpts(true), scales: { ...baseOpts(true).scales, y: { beginAtZero: true, grid: { color: '#f1f3f5' } } } }
+});
+
+// ═══════════ 模块切换 & 侧边栏 ═══════════
+let currentModule = 'order';
+const moduleCharts = {}; // 按模块存储图表实例
+const moduleInitialized = {}; // 记录模块是否已初始化
+
+function switchModule(modName) {
+  if (currentModule === modName) return;
+
+  // 切换导航高亮
+  document.querySelectorAll('.sidebar .nav-item').forEach(item => {
+    item.classList.toggle('active', item.dataset.module === modName);
+  });
+
+  // 切换页面显示
+  document.querySelectorAll('.module-page').forEach(page => {
+    page.classList.toggle('active', page.id === 'mod-' + modName);
+  });
+
+  currentModule = modName;
+
+  // 延迟初始化图表（等待 DOM 可见后 canvas 有尺寸）
+  if (!moduleInitialized[modName]) {
+    setTimeout(() => initModuleCharts(modName), 150);
+  }
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const btn = sidebar.querySelector('.sidebar-toggle');
+  sidebar.classList.toggle('collapsed');
+  btn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀ 收起';
+  // 侧边栏宽度变化后，各模块图表需要重新计算尺寸
+  setTimeout(() => {
+    Object.values(moduleCharts).forEach(charts => {
+      if (Array.isArray(charts)) charts.forEach(c => c.resize());
+    });
+    // 同时 resize 订单跟踪的图表
+    if (moduleCharts['order']) moduleCharts['order'].forEach(c => c.resize());
+  }, 300);
+}
+
+// ── 各模块图表初始化（懒加载） ──
+function initModuleCharts(modName) {
+  if (moduleInitialized[modName]) return;
+  moduleInitialized[modName] = true;
+
+  switch (modName) {
+    case 'order':
+      // 订单跟踪的图表在页面加载时已创建，只需 resize
+      Chart.helpers.each(Chart.instances, chart => chart.resize());
+      moduleCharts['order'] = Object.values(Chart.instances);
+      break;
+
+    case 'supplier':
+      moduleCharts['supplier'] = [new Chart(document.getElementById('chartSupplierTrend'), {
+        type: 'line',
+        data: {
+          labels: ['1月','2月','3月','4月','5月','6月','7月'],
+          datasets: [
+            { label: '新增准入', data: [3,2,4,1,5,3,4], borderColor: '#27ae60', backgroundColor: 'transparent', tension: 0.3 },
+            { label: '淘汰/暂停', data: [1,0,2,1,0,2,1], borderColor: '#e74c3c', backgroundColor: 'transparent', tension: 0.3 },
+            { label: '净增', data: [2,2,2,0,5,1,3], borderColor: '#2c6fce', backgroundColor: 'rgba(44,111,206,0.15)', tension: 0.3, fill: true }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }, scales: { y: { beginAtZero: true, grid: { color: '#f1f3f5' } } } }
+      })];
+      break;
+
+    case 'material':
+      moduleCharts['material'] = [new Chart(document.getElementById('chartMaterialABC'), {
+        type: 'treemap' in Chart ? 'bar' : 'bar',
+        data: {
+          labels: ['A类 半导体(占70%)', 'A类 精密件(占12%)', 'B类 电子元件(占10%)', 'B类 金属材料(占5%)', 'C类 包装材料(占2%)', 'C类 其他(占1%)'],
+          datasets: [{
+            label: '年采购金额(万)', data: [4250, 720, 600, 300, 120, 60],
+            backgroundColor: ['#e74c3c','#e67e22','#f39c12','#3498db','#27ae60','#95a5a6'],
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => '¥' + ctx.raw + '万 (' + ['70%','12%','10%','5%','2%','1%'][ctx.dataIndex] + ')' } }
+          },
+          scales: { x: { title: { display: true, text: '金额(万)', font: { size: 11 } }, grid: { color: '#f1f3f5' } } }
+        }
+      })];
+      break;
+
+    case 'price':
+      moduleCharts['price'] = [new Chart(document.getElementById('chartPriceTrend'), {
+        type: 'line',
+        data: {
+          labels: ['8月','9月','10月','11月','12月','1月','2月','3月','4月','5月','6月','7月'],
+          datasets: [
+            { label: 'MCU芯片', data: [33,33.5,34,34.5,35,35,35.5,36,36.5,37,37,37], borderColor: '#e74c3c', backgroundColor: 'transparent', tension: 0.3 },
+            { label: '连接器壳体', data: [4.2,4.3,4.3,4.4,4.5,4.5,4.5,4.6,4.7,4.8,4.8,4.8], borderColor: '#f39c12', backgroundColor: 'transparent', tension: 0.3 },
+            { label: '特种合金', data: [80,82,83,84,85,85,86,88,89,90,90,90], borderColor: '#3498db', backgroundColor: 'transparent', tension: 0.3 },
+            { label: '深沟球轴承', data: [8.5,8.3,8.2,8.0,8.0,8.0,8.0,8.0,7.8,7.6,7.6,7.6], borderColor: '#27ae60', backgroundColor: 'transparent', tension: 0.3 }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }, scales: { y: { grid: { color: '#f1f3f5' } } } }
+      })];
+      break;
+
+    case 'stock':
+      moduleCharts['stock'] = [new Chart(document.getElementById('chartStockLevel'), {
+        type: 'bar',
+        data: {
+          labels: ['半导体','连接器','金属材料','电子元件','包装材料','轴承'],
+          datasets: [
+            { label: '当前库存(万)', data: [185, 48, 36, 290, 68, 52], backgroundColor: 'rgba(44,111,206,0.7)', borderRadius: 4 },
+            { label: '安全库存线(万)', data: [200, 60, 45, 260, 80, 48], backgroundColor: 'rgba(231,76,60,0.7)', borderRadius: 4, type: 'line', borderColor: '#e74c3c', pointRadius: 4 }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }, scales: { y: { beginAtZero: true, grid: { color: '#f1f3f5' }, title: { display: true, text: '金额(万元)', font: { size: 11 } } } } }
+      })];
+      break;
+
+    case 'report':
+      // 报表中心没有图表，只有报表卡片
+      break;
+
+    case 'anomaly':
+      moduleCharts['anomaly'] = [new Chart(document.getElementById('chartAnomalyRoot'), {
+        type: 'doughnut',
+        data: {
+          labels: ['供应商产能不足 28%','物流延迟 22%','原材料短缺 18%','质量不合格 12%','交期承诺过短 10%','信息沟通问题 6%','其他 4%'],
+          datasets: [{
+            data: [28, 22, 18, 12, 10, 6, 4],
+            backgroundColor: ['#e74c3c','#f39c12','#e67e22','#8e44ad','#3498db','#16a085','#95a5a6'],
+            borderWidth: 2, borderColor: '#fff'
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '50%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 }, padding: 10 } } } }
+      })];
+      break;
+  }
+}
+
+// 页面加载时初始化订单跟踪模块的图表引用
+window.addEventListener('load', function() {
+  moduleInitialized['order'] = true;
+  moduleCharts['order'] = Object.values(Chart.instances);
+});
+
+// 更新时间
+document.getElementById('updateTime').textContent = new Date().toLocaleString('zh-CN', {hour12: false});
+
+// ═══════════ 模板下载 & 数据上传 ═══════════
+
+// 模板字段定义
+const TEMPLATE_HEADERS = [
+  '采购订单号','采购申请号','供应商名称','物料编码','物料名称','规格型号',
+  '采购数量','采购单价','采购金额(万)','下单日期','要求到货日期','承诺到货日期',
+  '最新预计到货日期','实际到货日期','已到货数量','未交数量','当前状态',
+  '延期天数','采购负责人','异常原因','处理措施','最新跟进记录'
+];
+
+const STATUS_MAP = {
+  '待审批':'待审批','待供应商确认':'待供应商确认','已确认待生产':'已确认待生产',
+  '已生产待发货':'已生产待发货','已发货在途':'已发货在途','部分到货':'部分到货',
+  '已完成':'已完成','已延期':'已延期','已取消':'已取消','临期':'临期'
+};
+
+// 全局存储解析后的数据
+let parsedOrders = [];
+let originalChartData = {}; // 保存原始图表数据以便恢复
+
+// ── 下载模板 ──
+function downloadTemplate() {
+  // 示例数据行
+  const sampleRows = [
+    ['PO-2026-0001','PR-2026-0001','示例供应商','MAT-001','示例物料A','标准型','1000','25.00','2.5','2026-07-01','2026-07-15','2026-07-15','2026-07-15','2026-07-14','1000','0','已完成','0','张三','','',''],
+    ['PO-2026-0002','PR-2026-0002','示例供应商','MAT-002','示例物料B','加强型','500','80.00','4.0','2026-07-05','2026-07-20','2026-07-22','2026-07-28','','300','200','已延期','8','李四','产能不足','升级处理','07-19已电话跟进'],
+    ['PO-2026-0003','PR-2026-0003','示例供应商','MAT-003','示例物料C','K-1','2000','12.00','2.4','2026-07-10','2026-07-25','2026-07-25','2026-07-25','','0','2000','待供应商确认','0','王五','','',''],
+  ];
+
+  let csv = '﻿' + TEMPLATE_HEADERS.join(',') + '\n';
+  sampleRows.forEach(row => {
+    csv += row.map(c => /[,"\n]/.test(c) ? '"' + c.replace(/"/g,'""') + '"' : c).join(',') + '\n';
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '采购订单导入模板.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast('模板下载成功！请按格式填写数据后上传 📥', 'success');
+}
+
+// ── 弹窗控制 ──
+function openUploadModal() {
+  document.getElementById('uploadModal').classList.add('show');
+  resetUpload();
+}
+function closeUploadModal() {
+  document.getElementById('uploadModal').classList.remove('show');
+  resetUpload();
+}
+
+function resetUpload() {
+  document.getElementById('uploadStep1').style.display = 'block';
+  document.getElementById('uploadStep2').style.display = 'none';
+  document.getElementById('btnImport').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+  parsedOrders = [];
+}
+
+// ── Toast 提示 ──
+function showToast(msg, type) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'toast ' + type + ' show';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.classList.remove('show'); }, 2500);
+}
+
+// ── 文件选择处理 ──
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('文件过大，请上传小于 10MB 的文件', 'error');
+    return;
+  }
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+
+  if (ext === 'csv') {
+    reader.onload = function(ev) { parseCSV(ev.target.result, file.name); };
+    reader.readAsText(file, 'UTF-8');
+  } else if (ext === 'xlsx' || ext === 'xls') {
+    reader.onload = function(ev) {
+      try {
+        const wb = XLSX.read(ev.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const csv = XLSX.utils.sheet_to_csv(ws);
+        parseCSV(csv, file.name);
+      } catch (err) {
+        showToast('Excel 解析失败，请确认文件格式正确', 'error');
+        console.error(err);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    showToast('不支持的文件格式，请上传 .csv / .xlsx / .xls', 'error');
+    return;
+  }
+}
+
+// ── CSV 解析 ──
+function parseCSV(csvText, fileName) {
+  // 移除 BOM
+  if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
+
+  const lines = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < csvText.length; i++) {
+    const ch = csvText[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (csvText[i + 1] === '"') { current += '"'; i++; }
+        else { inQuotes = false; }
+      } else { current += ch; }
+    } else {
+      if (ch === '"') { inQuotes = true; }
+      else if (ch === '\n') { lines.push(current); current = ''; }
+      else if (ch === '\r') { /* skip */ }
+      else { current += ch; }
+    }
+  }
+  if (current) lines.push(current);
+
+  if (lines.length < 2) {
+    showToast('文件为空或格式不正确', 'error');
+    return;
+  }
+
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  const dataRows = lines.slice(1).filter(l => l.trim());
+
+  // 检查表头匹配
+  const missingHeaders = TEMPLATE_HEADERS.filter(h => !headers.includes(h));
+  if (missingHeaders.length > TEMPLATE_HEADERS.length * 0.5) {
+    showToast('表头不匹配，请使用下载的模板格式。缺失: ' + missingHeaders.slice(0,3).join(', '), 'error');
+    return;
+  }
+
+  parsedOrders = dataRows.map(line => {
+    const vals = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQ) {
+        if (ch === '"') {
+          if (line[i + 1] === '"') { cur += '"'; i++; }
+          else { inQ = false; }
+        } else { cur += ch; }
+      } else {
+        if (ch === '"') { inQ = true; }
+        else if (ch === ',') { vals.push(cur.trim()); cur = ''; }
+        else { cur += ch; }
+      }
+    }
+    vals.push(cur.trim());
+
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = vals[i] || ''; });
+    return obj;
+  });
+
+  // 过滤示例数据
+  const realOrders = parsedOrders.filter(o =>
+    o['采购订单号'] && !o['采购订单号'].startsWith('PO-2026-000')
+  );
+  if (realOrders.length > 0) parsedOrders = realOrders;
+
+  document.getElementById('previewCount').textContent = parsedOrders.length;
+  document.getElementById('previewFileName').textContent = '· ' + fileName;
+
+  // 渲染预览表格
+  renderPreviewTable(parsedOrders);
+
+  document.getElementById('uploadStep1').style.display = 'none';
+  document.getElementById('uploadStep2').style.display = 'block';
+  document.getElementById('btnImport').style.display = 'inline-block';
+
+  showToast(`成功识别 ${parsedOrders.length} 条订单数据 ✅`, 'success');
+}
+
+// ── 预览表格 ──
+function renderPreviewTable(orders) {
+  const wrap = document.getElementById('previewTableWrap');
+  const showHeaders = ['采购订单号','供应商名称','物料名称','采购数量','未交数量','承诺到货日期','当前状态','延期天数','采购负责人'];
+  const showKeys = showHeaders.filter(k => orders[0] && orders[0][k] !== undefined);
+
+  let html = '<table><thead><tr>';
+  html += '<th>#</th>';
+  showKeys.forEach(k => { html += '<th>' + k + '</th>'; });
+  html += '</tr></thead><tbody>';
+
+  const preview = orders.slice(0, 20);
+  preview.forEach((o, i) => {
+    const isOverdue = parseInt(o['延期天数']) > 0 || (o['当前状态'] || '').includes('延期');
+    const rowClass = isOverdue ? 'highlight-row' : '';
+    html += '<tr class="' + rowClass + '">';
+    html += '<td>' + (i + 1) + '</td>';
+    showKeys.forEach(k => {
+      let val = o[k] || '-';
+      if (k === '延期天数' && parseInt(val) > 0) val = '<span style="color:#e74c3c;font-weight:600;">' + val + '天</span>';
+      if (k === '当前状态' && (val.includes('延期') || val.includes('紧急'))) val = '<span class="badge badge-danger">' + val + '</span>';
+      html += '<td>' + val + '</td>';
+    });
+    html += '</tr>';
+  });
+
+  if (orders.length > 20) {
+    html += '<tr><td colspan="' + (showKeys.length + 1) + '" style="text-align:center;color:#999;">... 还有 ' + (orders.length - 20) + ' 条数据未显示</td></tr>';
+  }
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+// ── 导入数据到看板 ──
+function importData() {
+  if (parsedOrders.length === 0) {
+    showToast('没有可导入的数据', 'error');
+    return;
+  }
+
+  // 1. 更新指标卡片
+  updateMetrics(parsedOrders);
+
+  // 2. 更新图表
+  updateAllCharts(parsedOrders);
+
+  // 3. 更新订单明细表
+  updateDetailTable(parsedOrders);
+
+  // 4. 更新底部四张清单
+  updateBottomLists(parsedOrders);
+
+  // 5. 更新催货清单
+  updateUrgentList(parsedOrders);
+
+  // 更新时间和计数
+  document.getElementById('updateTime').textContent = new Date().toLocaleString('zh-CN', {hour12: false});
+
+  closeUploadModal();
+  showToast(`✅ 成功导入 ${parsedOrders.length} 条数据！看板已刷新`, 'success');
+
+  // 滚动到顶部
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── 更新核心指标 ──
+function updateMetrics(orders) {
+  const total = orders.length;
+  const totalAmount = orders.reduce((s, o) => s + parseFloat(o['采购金额(万)'] || 0), 0);
+  const pendingConfirm = orders.filter(o => o['当前状态'] === '待供应商确认').length;
+  const pendingShip = orders.filter(o => ['已确认待生产','已生产待发货'].includes(o['当前状态'])).length;
+  const inTransit = orders.filter(o => o['当前状态'] === '已发货在途').length;
+  const overdue = orders.filter(o => parseInt(o['延期天数'] || 0) > 0).length;
+  const completed = orders.filter(o => o['当前状态'] === '已完成').length;
+  const onTimeRate = total > 0 ? ((completed / total) * 100).toFixed(1) : '0.0';
+  const undeliveredAmount = orders.reduce((s, o) => {
+    const undelivered = parseInt(o['未交数量'] || 0);
+    if (undelivered > 0) return s + parseFloat(o['采购金额(万)'] || 0);
+    return s;
+  }, 0);
+
+  // 更新 DOM（简化：更新前几个关键卡片）
+  const metricCards = document.querySelectorAll('.metric-card .metric-value');
+  if (metricCards.length >= 9) {
+    metricCards[0].textContent = total.toLocaleString();
+    metricCards[1].textContent = '¥' + totalAmount.toFixed(0) + '万';
+    metricCards[2].textContent = pendingConfirm;
+    metricCards[3].textContent = pendingShip;
+    metricCards[4].textContent = inTransit;
+    metricCards[5].textContent = '—'; // 本周应到
+    metricCards[6].textContent = overdue;
+    metricCards[7].textContent = onTimeRate + '%';
+    metricCards[8].textContent = '¥' + undeliveredAmount.toFixed(0) + '万';
+  }
+}
+
+// ── 更新所有图表 ──
+function updateAllCharts(orders) {
+  // 统计各状态数量
+  const statusCount = {};
+  const statusAmount = {};
+  const statusList = ['待审批','待供应商确认','已确认待生产','已生产待发货','已发货在途','部分到货','已完成','已延期','已取消'];
+  statusList.forEach(s => { statusCount[s] = 0; statusAmount[s] = 0; });
+
+  orders.forEach(o => {
+    const st = o['当前状态'] || '待审批';
+    if (statusCount.hasOwnProperty(st)) {
+      statusCount[st]++;
+      statusAmount[st] += parseFloat(o['采购金额(万)'] || 0);
+    }
+  });
+
+  // 更新饼图
+  updateChartData('chartStatusCount', statusList, statusList.map(s => statusCount[s]));
+  updateChartData('chartStatusAmount', statusList, statusList.map(s => Math.round(statusAmount[s])));
+
+  // 更新延期天数分类
+  const overdueCount = orders.filter(o => parseInt(o['延期天数'] || 0) > 0).length;
+  const due3 = orders.filter(o => {
+    const due = new Date(o['承诺到货日期']);
+    const now = new Date();
+    const diff = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+    return diff >= 0 && diff <= 3 && parseInt(o['延期天数'] || 0) === 0 && o['当前状态'] !== '已完成';
+  }).length;
+  const due7 = orders.filter(o => {
+    const due = new Date(o['承诺到货日期']);
+    const now = new Date();
+    const diff = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+    return diff > 3 && diff <= 7 && parseInt(o['延期天数'] || 0) === 0 && o['当前状态'] !== '已完成';
+  }).length;
+  const normal = orders.length - overdueCount - due3 - due7;
+  const early = orders.filter(o => o['当前状态'] === '已完成' && (o['实际到货日期'] || '') < (o['承诺到货日期'] || '')).length;
+
+  updateChartData('chartDeliveryType',
+    ['已延期 ' + overdueCount, '3天内到期 ' + due3, '7天内到期 ' + due7, '正常 ' + normal, '提前到货 ' + early],
+    [overdueCount, due3, due7, Math.max(normal, 0), early]
+  );
+
+  // 更新供应商排行
+  const supplierStats = {};
+  orders.forEach(o => {
+    const sup = o['供应商名称'] || '未知';
+    if (!supplierStats[sup]) supplierStats[sup] = { delay: 0, ontime: 0 };
+    if (parseInt(o['延期天数'] || 0) > 0) supplierStats[sup].delay++;
+    else supplierStats[sup].ontime++;
+  });
+  const topSuppliers = Object.entries(supplierStats)
+    .sort((a, b) => b[1].delay - a[1].delay)
+    .slice(0, 8);
+
+  updateChartData('chartSupplierDelay',
+    topSuppliers.map(s => s[0]),
+    null,
+    [
+      { label: '延期订单', data: topSuppliers.map(s => s[1].delay), backgroundColor: 'rgba(231,76,60,0.7)', borderRadius: 4 },
+      { label: '准时订单', data: topSuppliers.map(s => s[1].ontime), backgroundColor: 'rgba(39,174,96,0.7)', borderRadius: 4 }
+    ]
+  );
+
+  // 更新异常类型
+  const anomalyCounts = {
+    '供应商未确认': orders.filter(o => o['当前状态'] === '待供应商确认').length,
+    '未排产': orders.filter(o => o['异常原因'] && o['异常原因'].includes('排产')).length,
+    '临期未发货': due3,
+    '超期未到货': overdueCount,
+    '数量不足': orders.filter(o => parseInt(o['未交数量'] || 0) > 0 && o['当前状态'] !== '已完成').length,
+    '交期频繁变更': orders.filter(o => o['异常原因'] && o['异常原因'].includes('变更')).length,
+    '供应商无回复': orders.filter(o => o['处理措施'] && o['处理措施'].includes('未回复')).length,
+  };
+
+  updateChartData('chartAnomalyType',
+    Object.keys(anomalyCounts),
+    Object.values(anomalyCounts),
+    null,
+    true
+  );
+}
+
+// ── 图表数据更新辅助 ──
+const chartInstances = {};
+function updateChartData(canvasId, labels, data, altDatasets, isHorizontal) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  // 获取已有 chart 实例
+  let chart = chartInstances[canvasId] || Chart.getChart(canvas);
+  if (!chart) return;
+  chartInstances[canvasId] = chart;
+
+  chart.data.labels = labels;
+
+  if (altDatasets) {
+    // 多数据集模式：直接替换 datasets
+    chart.data.datasets = altDatasets.map(ds => ({
+      ...ds,
+      backgroundColor: ds.backgroundColor || 'rgba(44,111,206,0.7)',
+      borderRadius: ds.borderRadius || 4
+    }));
+    // 恢复堆叠配置
+    if (canvasId === 'chartSupplierDelay') {
+      chart.options.scales.x.stacked = true;
+      chart.options.scales.y.stacked = true;
+    }
+  } else {
+    // 单数据集：更新 data 和 backgroundColor
+    if (chart.data.datasets[0]) {
+      chart.data.datasets[0].data = data;
+      // 保持颜色数量匹配
+      if (chart.data.datasets[0].backgroundColor && Array.isArray(chart.data.datasets[0].backgroundColor)) {
+        const origColors = chart.data.datasets[0].backgroundColor;
+        if (data.length > origColors.length) {
+          // 补充颜色
+          const extraColors = ['#e74c3c','#f39c12','#3498db','#27ae60','#16a085','#8e44ad','#95a5a6','#e67e22','#1abc9c','#2ecc71'];
+          chart.data.datasets[0].backgroundColor = [...origColors, ...extraColors.slice(0, data.length - origColors.length)];
+        }
+      }
+    }
+  }
+
+  if (isHorizontal) {
+    chart.options.indexAxis = 'y';
+    // 确保 scales 存在
+    if (!chart.options.scales) chart.options.scales = {};
+    if (!chart.options.scales.x) chart.options.scales.x = {};
+    chart.options.scales.x.grid = chart.options.scales.x.grid || {};
+    chart.options.scales.x.grid.display = false;
+  }
+
+  chart.update();
+}
+
+// ── 更新订单明细表 ──
+function updateDetailTable(orders) {
+  const tbody = document.querySelector('.panel:last-of-type .table-scroll table tbody');
+  // 找到明细表（最后一个大表格）
+  const allTables = document.querySelectorAll('table');
+  let detailTable = null;
+  allTables.forEach(t => {
+    if (t.querySelector('thead') && t.querySelector('thead').textContent.includes('采购订单号') && t.querySelector('thead').textContent.includes('采购申请号')) {
+      detailTable = t;
+    }
+  });
+
+  if (!detailTable) return;
+
+  const detailTbody = detailTable.querySelector('tbody');
+  if (!detailTbody) return;
+
+  let html = '';
+  const display = orders.slice(0, 50); // 最多显示50条
+  display.forEach(o => {
+    const delayDays = parseInt(o['延期天数'] || 0);
+    const amount = parseFloat(o['采购金额(万)'] || 0).toFixed(1);
+    const rowClass = delayDays > 0 ? 'highlight-row' : (delayDays === 0 && (o['当前状态']||'').includes('临期') ? 'warn-row' : '');
+    const statusBadge = delayDays > 0 ? 'badge-danger' :
+      ((o['当前状态']||'').includes('临期') ? 'badge-warning' :
+       (o['当前状态']||'') === '已完成' ? 'badge-success' : 'badge-info');
+
+    html += '<tr class="' + rowClass + '">';
+    html += '<td><span class="link">' + (o['采购订单号'] || '-') + '</span></td>';
+    html += '<td>' + (o['采购申请号'] || '-') + '</td>';
+    html += '<td>' + (o['供应商名称'] || '-') + '</td>';
+    html += '<td>' + (o['物料编码'] || '-') + '</td>';
+    html += '<td>' + (o['物料名称'] || '-') + '</td>';
+    html += '<td>' + (o['规格型号'] || '-') + '</td>';
+    html += '<td>' + (o['采购数量'] || '-') + '</td>';
+    html += '<td>' + (o['采购单价'] ? '¥' + o['采购单价'] : '-') + '</td>';
+    html += '<td>¥' + amount + '</td>';
+    html += '<td>' + (o['下单日期'] || '-') + '</td>';
+    html += '<td>' + (o['要求到货日期'] || '-') + '</td>';
+    html += '<td>' + (o['承诺到货日期'] || '-') + '</td>';
+    html += '<td>' + (o['最新预计到货日期'] || '-') + '</td>';
+    html += '<td>' + (o['实际到货日期'] || '—') + '</td>';
+    html += '<td>' + (o['已到货数量'] || '0') + '</td>';
+    html += '<td>' + (o['未交数量'] || '0') + '</td>';
+    html += '<td><span class="badge ' + statusBadge + '">' + (o['当前状态'] || '-') + '</span></td>';
+    html += '<td>' + (delayDays > 0 ? '<span style="color:#e74c3c">' + delayDays + '</span>' : String(delayDays)) + '</td>';
+    html += '<td>' + (o['采购负责人'] || '-') + '</td>';
+    html += '<td>' + (o['异常原因'] || '—') + '</td>';
+    html += '<td>' + (o['处理措施'] || '—') + '</td>';
+    html += '</tr>';
+  });
+  detailTbody.innerHTML = html;
+
+  // 更新分页提示
+  const pageInfo = detailTable.closest('.panel-body').querySelector('div:last-child span:first-child');
+  if (pageInfo) {
+    pageInfo.textContent = '显示 1-' + display.length + ' / 共 ' + orders.length + ' 条';
+  }
+}
+
+// ── 更新底部四张清单 ──
+function updateBottomLists(orders) {
+  // 待确认
+  const pendingList = orders.filter(o => o['当前状态'] === '待供应商确认');
+  updateSimpleList(pendingList, '待供应商确认', ['采购订单号','供应商名称','物料名称','采购数量','下单日期'], '待确认订单清单');
+
+  // 临期
+  const now = new Date();
+  const nearDue = orders.filter(o => {
+    if (o['当前状态'] === '已完成' || o['当前状态'] === '已取消') return false;
+    const due = new Date(o['承诺到货日期']);
+    if (isNaN(due.getTime())) return false;
+    const diff = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+    return diff >= 0 && diff <= 7;
+  });
+  updateSimpleList(nearDue, '临期', ['采购订单号','供应商名称','物料名称','未交数量','承诺到货日期'], '临期订单清单');
+
+  // 延期
+  const overdueList = orders.filter(o => parseInt(o['延期天数'] || 0) > 0);
+  updateSimpleList(overdueList, '已延期', ['采购订单号','供应商名称','物料名称','未交数量','承诺到货日期','延期天数'], '延期订单清单');
+
+  // 紧急催货
+  const urgentList = orders.filter(o => parseInt(o['延期天数'] || 0) >= 5 || (o['处理措施'] || '').includes('升级'));
+  updateSimpleList(urgentList, '紧急催货', ['采购订单号','供应商名称','物料名称','延期天数','异常原因','采购负责人'], '紧急催货清单');
+}
+
+function updateSimpleList(list, type, fields, panelTitle) {
+  // 找到对应面板并更新计数和内容
+  const panels = document.querySelectorAll('.panel');
+  panels.forEach(panel => {
+    const header = panel.querySelector('.panel-header');
+    if (header && header.textContent.includes(panelTitle)) {
+      // 更新计数
+      const badge = header.querySelector('.badge');
+      if (badge) badge.textContent = list.length + '笔';
+
+      // 更新表格
+      const tbody = panel.querySelector('tbody');
+      if (tbody) {
+        let html = '';
+        list.slice(0, 10).forEach(o => {
+          html += '<tr>';
+          fields.forEach(f => {
+            let val = o[f] || '-';
+            if (f === '延期天数' && parseInt(val) > 0) val = '<span style="color:#e74c3c;font-weight:600;">' + val + '天</span>';
+            if (f === '采购订单号') val = '<span class="link">' + val + '</span>';
+            html += '<td>' + val + '</td>';
+          });
+          html += '<td><span class="link">' + (type === '紧急催货' ? '紧急处理' : '跟进') + '</span></td>';
+          html += '</tr>';
+        });
+        if (list.length === 0) {
+          html = '<tr><td colspan="' + (fields.length + 1) + '" style="text-align:center;color:#999;padding:16px;">暂无数据 ✅</td></tr>';
+        }
+        tbody.innerHTML = html;
+      }
+    }
+  });
+}
+
+// ── 更新催货优先级清单 ──
+function updateUrgentList(orders) {
+  // 查找催货清单表格（包含"紧急催货"标签的表体）
+  const allTbodies = document.querySelectorAll('table tbody');
+  for (const tb of allTbodies) {
+    const firstCell = tb.querySelector('tr:first-child td:first-child');
+    if (firstCell && firstCell.textContent.includes('紧急催货')) {
+      updateUrgentTableBody(tb, orders);
+      return;
+    }
+  }
+  // 备用：查找包含"催货负责人"表头的表格
+  for (const tb of allTbodies) {
+    const ths = tb.closest('table')?.querySelectorAll('thead th');
+    if (ths) {
+      const thTexts = Array.from(ths).map(th => th.textContent.trim()).join(',');
+      if (thTexts.includes('催货负责人') && thTexts.includes('供应商回复')) {
+        updateUrgentTableBody(tb, orders);
+        return;
+      }
+    }
+  }
+}
+
+function updateUrgentTableBody(tbody, orders) {
+  const urgentOrders = orders
+    .filter(o => parseInt(o['延期天数'] || 0) > 0 || (o['当前状态'] || '').includes('延期') || (o['当前状态'] || '').includes('临期'))
+    .sort((a, b) => parseInt(b['延期天数'] || 0) - parseInt(a['延期天数'] || 0))
+    .slice(0, 10);
+
+  let html = '';
+  urgentOrders.forEach(o => {
+    const delay = parseInt(o['延期天数'] || 0);
+    let priority, tagClass;
+    if (delay >= 7) { priority = '紧急催货'; tagClass = 'tag-urgent'; }
+    else if (delay >= 3) { priority = '紧急催货'; tagClass = 'tag-urgent'; }
+    else if (delay > 0) { priority = '今日跟进'; tagClass = 'tag-today'; }
+    else { priority = '本周关注'; tagClass = 'tag-week'; }
+
+    const rowClass = delay >= 5 ? 'highlight-row' : (delay > 0 ? 'warn-row' : '');
+    const statusBadge = delay > 0 ? 'badge-danger' : 'badge-warning';
+
+    html += '<tr class="' + rowClass + '">';
+    html += '<td><span class="tag ' + tagClass + '">' + priority + '</span></td>';
+    html += '<td><span class="link">' + (o['采购订单号'] || '-') + '</span></td>';
+    html += '<td>' + (o['供应商名称'] || '-') + '</td>';
+    html += '<td>' + (o['物料名称'] || '-') + '</td>';
+    html += '<td>' + (o['采购数量'] || '-') + '</td>';
+    html += '<td><strong style="color:' + (delay > 0 ? 'var(--red)' : 'inherit') + '">' + (o['未交数量'] || '0') + '</strong></td>';
+    html += '<td>' + (o['承诺到货日期'] || '-') + '</td>';
+    html += '<td>' + (o['最新预计到货日期'] || '-') + '</td>';
+    html += '<td><strong style="color:' + (delay > 0 ? 'var(--red)' : 'var(--orange)') + '">' + (delay > 0 ? delay + '天' : (delay === 0 && (o['当前状态']||'').includes('临期') ? '临期' : '-')) + '</strong></td>';
+    html += '<td><span class="badge ' + statusBadge + '">' + (o['当前状态'] || '-') + '</span></td>';
+    html += '<td>' + (delay >= 7 ? '🔴 高风险' : (delay >= 3 ? '🟠 关注' : '🟡 预警')) + '</td>';
+    html += '<td>' + (o['采购负责人'] || '-') + '</td>';
+    html += '<td>' + (o['最新跟进记录'] || '—') + '</td>';
+    html += '<td>' + (o['异常原因'] || '—') + '</td>';
+    html += '<td>' + (o['处理措施'] || '跟进') + '</td>';
+    html += '</tr>';
+  });
+
+  if (urgentOrders.length === 0) {
+    html = '<tr><td colspan="15" style="text-align:center;color:#999;padding:16px;">暂无催货订单 ✅</td></tr>';
+  }
+  tbody.innerHTML = html;
+}
+
+// ── 拖拽上传支持 ──
+const dropZone = document.getElementById('dropZone');
+if (dropZone) {
+  dropZone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    this.classList.add('dragover');
+  });
+  dropZone.addEventListener('dragleave', function() {
+    this.classList.remove('dragover');
+  });
+  dropZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    this.classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      document.getElementById('fileInput').files = files;
+      handleFileSelect({ target: { files: files } });
+    }
+  });
+}
+
+// 点击弹窗遮罩关闭
+document.getElementById('uploadModal').addEventListener('click', function(e) {
+  if (e.target === this) closeUploadModal();
+});
+</script>
+
+</body>
+</html>
