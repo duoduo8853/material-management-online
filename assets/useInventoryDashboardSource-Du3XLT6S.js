@@ -1,1 +1,0 @@
-import{f as s,g as t,G as c,r as l,H as d,I as n}from"./index-DLFN0aDh.js";function i(){const o=l(d);let e="";async function a(u=!1){const r=await c();e&&n(e),e=r.uploaded?r.url:"",o.value=r.uploaded?r.url:u?`${r.url}?refresh=${Date.now()}`:r.url}return s(()=>{a()}),t(()=>{e&&n(e)}),{sourceUrl:o,refreshSource:a}}export{i as u};
