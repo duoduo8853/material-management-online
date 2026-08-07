@@ -263,10 +263,22 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     }
     .traffic-focus { padding: 16px 20px 18px; }
     .traffic-focus-title {
-      display: flex; justify-content: space-between; margin-bottom: 8px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px;
       color: var(--text-secondary); font-size: 12px; font-weight: 600;
     }
     .traffic-focus-title span { color: var(--text-muted); font-weight: 400; }
+    .traffic-export {
+      display: inline-flex; align-items: center; justify-content: center; min-height: 28px;
+      padding: 5px 10px; border: 1px solid var(--traffic-soft); border-radius: var(--radius-sm);
+      background: var(--traffic-soft); color: var(--traffic-color); cursor: pointer;
+      font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap;
+      transition: border-color .2s, background .2s, color .2s;
+    }
+    .traffic-export:hover:not(:disabled) {
+      border-color: var(--traffic-color); background: var(--traffic-color); color: #fff;
+    }
+    .traffic-export:focus-visible { outline: 2px solid var(--traffic-color); outline-offset: 2px; }
+    .traffic-export:disabled { cursor: not-allowed; opacity: .45; }
     .traffic-focus-list { display: grid; gap: 1px; list-style: none; }
     .traffic-focus-item {
       display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px;
@@ -292,10 +304,15 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     .traffic-missing-stat { padding-left: 18px; border-left: 1px solid var(--gridline); }
     .traffic-missing-stat strong { display: block; font-size: 16px; font-variant-numeric: tabular-nums; }
     .traffic-missing-stat span { color: var(--text-muted); font-size: 11px; }
+    .traffic-export-missing {
+      --traffic-color: var(--text-secondary); --traffic-soft: var(--surface-1);
+      border-color: var(--gridline);
+    }
     @media (max-width: 1100px) {
       .traffic-light-row { grid-template-columns: 1fr; }
       .traffic-missing { grid-template-columns: auto minmax(0, 1fr); }
       .traffic-missing-stat { padding-left: 52px; border-left: 0; }
+      .traffic-missing .traffic-export { grid-column: 2; justify-self: start; }
     }
 
     .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -628,7 +645,8 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         materialCount:new Set(rows.map(r => String(r.mat || r.sku))).size,
         quantity:rows.reduce((sum,r) => sum + (Number(r.stock) || 0), 0),
         amount:rows.reduce((sum,r) => sum + (Number(r.bamt) || 0), 0),
-        focus:sorted.slice(0,4)
+        focus:sorted.slice(0,4),
+        rows:sorted
       };
     }
 
@@ -924,6 +942,83 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       return `剩余 ${days} 天`;
     }
 
+    function exportTrafficLightDetails(key){
+      if(typeof XLSX === 'undefined'){
+        alert('Excel 导出组件尚未加载，请刷新页面后重试。');
+        return;
+      }
+
+      const data = computeTrafficLights(getView());
+      const group = key === 'missing'
+        ? data.missing
+        : data.groups.find(item => item.key === key);
+      if(!group || !group.rows.length){
+        alert('当前筛选条件下没有可导出的明细。');
+        return;
+      }
+
+      const statusNames = {
+        red:'红灯',
+        yellow:'黄灯',
+        green:'绿灯',
+        missing:'效期待补充'
+      };
+      const fileNames = {
+        red:'效期红灯明细',
+        yellow:'效期黄灯明细',
+        green:'效期绿灯明细',
+        missing:'效期信息待补充明细'
+      };
+      const rows = group.rows.map((row,index) => ({
+        序号:index + 1,
+        状态:statusNames[key] || group.label,
+        处置规则:group.threshold,
+        仓库:row.wh || '',
+        料号:String(row.mat || ''),
+        物料描述:row.sku || '',
+        品类:row.category || '',
+        供应商:row.supplier || '',
+        批次号:row.batch || '',
+        生产日期:row.prodDate || '',
+        到期日期:row.expDate || '',
+        剩余天数:row.remDays === null ? '' : row.remDays,
+        库存数量:Math.round((Number(row.stock) || 0) * 1000) / 1000,
+        库存金额:Math.round((Number(row.bamt) || 0) * 100) / 100,
+        建议行动:row.action || ''
+      }));
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      worksheet['!cols'] = [
+        {wch:8}, {wch:14}, {wch:24}, {wch:10}, {wch:22},
+        {wch:48}, {wch:16}, {wch:38}, {wch:20}, {wch:14},
+        {wch:14}, {wch:12}, {wch:16}, {wch:16}, {wch:18}
+      ];
+      if(worksheet['!ref']) worksheet['!autofilter'] = { ref:worksheet['!ref'] };
+
+      const filterText = [
+        `品类：${filters.cat}`,
+        `物料：${filters.sku}`,
+        `供应商：${filters.sup}`,
+        `风险：${filters.risk}`,
+        `零消耗：${filters.zero}`
+      ].join('；');
+      const instructions = XLSX.utils.aoa_to_sheet([
+        [`${statusNames[key] || group.label}明细导出说明`],
+        ['数据日期', filters.date],
+        ['状态规则', group.threshold],
+        ['当前筛选', filterText],
+        ['物料数', group.materialCount],
+        ['明细记录数', group.rows.length],
+        ['库存金额', Math.round(group.amount * 100) / 100]
+      ]);
+      instructions['!cols'] = [{wch:18}, {wch:100}];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '物料明细');
+      XLSX.utils.book_append_sheet(workbook, instructions, '导出说明');
+      const dateSuffix = String(filters.date || BASE_DATE).replace(/-/g,'');
+      XLSX.writeFile(workbook, `${fileNames[key] || '效期状态明细'}_${dateSuffix}.xlsx`);
+    }
+
     function renderTrafficLights(data){
       const container = document.getElementById('traffic-light-row');
       if(!container) return;
@@ -948,7 +1043,15 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
               <div class="traffic-metric"><span>库存金额</span><strong>${fmtMoney(group.amount / 10000)} 万元</strong></div>
             </div>
             <div class="traffic-focus">
-              <div class="traffic-focus-title">优先关注物料 <span>按剩余天数排序</span></div>
+              <div class="traffic-focus-title">
+                <div>优先关注物料 <span>按剩余天数排序</span></div>
+                <button
+                  type="button"
+                  class="traffic-export"
+                  onclick="exportTrafficLightDetails('${group.key}')"
+                  ${group.rows.length ? '' : 'disabled'}
+                >导出明细</button>
+              </div>
               <ol class="traffic-focus-list">${focus}</ol>
             </div>
           </article>`;
@@ -964,6 +1067,12 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
           <div class="traffic-missing-stat"><strong>${fmtInt(missing.materialCount)}</strong><span>种物料</span></div>
           <div class="traffic-missing-stat"><strong>${fmtInt(missing.quantity)}</strong><span>库存数量</span></div>
           <div class="traffic-missing-stat"><strong>${fmtMoney(missing.amount / 10000)} 万元</strong><span>库存金额</span></div>
+          <button
+            type="button"
+            class="traffic-export traffic-export-missing"
+            onclick="exportTrafficLightDetails('missing')"
+            ${missing.rows.length ? '' : 'disabled'}
+          >导出明细</button>
         </aside>`;
     }
 
