@@ -308,7 +308,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         <div id="chart-expiry" class="chart-box"></div>
       </div>
       <div class="card">
-        <div class="card-title">临期 / 过期预测趋势 <span class="card-sub">未来180天（单位：KG）</span></div>
+        <div class="card-title">临期 / 过期预测趋势 <span class="card-sub">每 7 天测算 · 未来 180 天 · KG</span></div>
         <div id="chart-trend" class="chart-box"></div>
       </div>
       <div class="card">
@@ -566,18 +566,150 @@ const EMBEDDED = {"today": "2026-07-22", "records": [{"wh": "0001", "mat": "7373
 
     function renderTrendChart(data){
       const c = colors();
+      const nearName = '临期库存（≤90天）';
+      const expiredName = '过期库存';
+      const nearValues = data.near || [];
+      const expiredValues = data.expired || [];
+      const lastIndex = data.dates.length - 1;
+      const latestValue = values => lastIndex >= 0 ? values[lastIndex] : 0;
+
       trendChart.setOption({
-        legend: { top:4, right:8, icon:'roundRect', textStyle:{ color:c.secondary } },
-        xAxis: { type:'category', data:data.dates, axisLine:{ lineStyle:{ color:c.grid } }, axisLabel:{ color:c.secondary } },
-        yAxis: { type:'value', axisLine:{ show:false }, splitLine:{ lineStyle:{ color:c.grid } }, axisLabel:{ color:c.muted } },
+        animationDuration: 450,
+        grid: { left:16, right:24, top:64, bottom:30, containLabel:true },
+        tooltip: {
+          trigger:'axis',
+          backgroundColor:cssVar('--surface-card'),
+          borderColor:cssVar('--border'),
+          borderWidth:1,
+          padding:[10,12],
+          textStyle:{ color:c.primary, fontSize:12 },
+          extraCssText:'box-shadow:0 10px 28px rgba(21,37,45,.12);border-radius:8px;',
+          axisPointer:{ type:'line', lineStyle:{ color:c.muted, width:1, type:'dashed' } },
+          formatter: items => {
+            if(!items || !items.length) return '';
+            const rows = items.map(item => `
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:22px;margin-top:7px">
+                <span style="display:flex;align-items:center;gap:7px;color:${c.secondary}">
+                  <i style="width:8px;height:8px;border-radius:50%;background:${item.color};display:inline-block"></i>
+                  ${escapeHtml(item.seriesName)}
+                </span>
+                <strong style="font-variant-numeric:tabular-nums">${fmtInt(item.value)} KG</strong>
+              </div>`).join('');
+            return `<div style="min-width:210px">
+              <div style="font-weight:700;color:${c.primary}">${escapeHtml(items[0].axisValue)}</div>
+              ${rows}
+            </div>`;
+          }
+        },
+        legend: {
+          top:4,
+          right:8,
+          icon:'roundRect',
+          itemWidth:18,
+          itemHeight:7,
+          itemGap:18,
+          selectedMode:false,
+          textStyle:{ color:c.secondary, fontSize:11 },
+          formatter:name => {
+            const values = name === nearName ? nearValues : expiredValues;
+            return `${name}  ${fmtInt(latestValue(values))} KG`;
+          }
+        },
+        xAxis: {
+          type:'category',
+          boundaryGap:false,
+          data:data.dates,
+          axisLine:{ lineStyle:{ color:c.grid } },
+          axisTick:{ show:false },
+          axisLabel:{
+            color:c.muted,
+            fontSize:11,
+            margin:12,
+            hideOverlap:true,
+            interval:index => index === 0 || index === lastIndex || index % 4 === 0
+          }
+        },
+        yAxis: {
+          type:'value',
+          splitNumber:4,
+          axisLine:{ show:false },
+          axisTick:{ show:false },
+          splitLine:{ lineStyle:{ color:c.grid, type:'dashed' } },
+          axisLabel:{ color:c.muted, fontSize:11, formatter:value => fmtInt(value) }
+        },
         series: [
-          { name:'临期库存量(≤90天)', type:'line', data:data.near, smooth:false, symbol:'circle', symbolSize:7,
-            itemStyle:{ color:c.orange, borderWidth:2, borderColor:cssVar('--surface-card') }, lineStyle:{ width:2, color:c.orange },
-            label:{ show:true, position:'top', color:c.primary, fontSize:9, formatter:'{c}' } },
-          { name:'过期库存量', type:'line', data:data.expired, smooth:false, symbol:'circle', symbolSize:7,
-            itemStyle:{ color:c.critical, borderWidth:2, borderColor:cssVar('--surface-card') }, lineStyle:{ width:2, color:c.critical } }
+          {
+            name:nearName,
+            type:'line',
+            data:nearValues,
+            smooth:0.22,
+            showSymbol:false,
+            symbol:'circle',
+            symbolSize:8,
+            itemStyle:{ color:c.orange, borderWidth:2, borderColor:cssVar('--surface-card') },
+            lineStyle:{ width:3, color:c.orange },
+            areaStyle:{ color:c.orange, opacity:0.08 },
+            emphasis:{ focus:'series', scale:true },
+            markPoint:{
+              symbol:'circle',
+              symbolSize:9,
+              itemStyle:{ color:c.orange, borderWidth:2, borderColor:cssVar('--surface-card') },
+              label:{
+                show:true,
+                position:'top',
+                distance:8,
+                color:c.primary,
+                fontSize:10,
+                fontWeight:600,
+                backgroundColor:cssVar('--surface-card'),
+                borderColor:c.orange,
+                borderWidth:1,
+                borderRadius:5,
+                padding:[3,6],
+                formatter:param => `临期峰值 ${fmtInt(param.value)}`
+              },
+              data:[{ type:'max', name:'临期峰值' }]
+            }
+          },
+          {
+            name:expiredName,
+            type:'line',
+            data:expiredValues,
+            step:'end',
+            showSymbol:false,
+            symbol:'diamond',
+            symbolSize:8,
+            itemStyle:{ color:c.critical, borderWidth:2, borderColor:cssVar('--surface-card') },
+            lineStyle:{ width:2.5, color:c.critical },
+            areaStyle:{ color:c.critical, opacity:0.035 },
+            emphasis:{ focus:'series', scale:true },
+            markPoint:{
+              symbol:'diamond',
+              symbolSize:10,
+              itemStyle:{ color:c.critical, borderWidth:2, borderColor:cssVar('--surface-card') },
+              label:{
+                show:lastIndex >= 0,
+                position:'left',
+                distance:8,
+                color:c.primary,
+                fontSize:10,
+                fontWeight:600,
+                backgroundColor:cssVar('--surface-card'),
+                borderColor:c.critical,
+                borderWidth:1,
+                borderRadius:5,
+                padding:[3,6],
+                formatter:param => `当前过期 ${fmtInt(param.value)}`
+              },
+              data:lastIndex >= 0 ? [{
+                name:'当前过期',
+                coord:[data.dates[lastIndex], latestValue(expiredValues)],
+                value:latestValue(expiredValues)
+              }] : []
+            }
+          }
         ]
-      });
+      }, true);
     }
 
     function renderTop10(data){
