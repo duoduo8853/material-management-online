@@ -512,6 +512,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
     function parseDate(s){ if(!s) return null; const d=new Date(s+'T00:00:00'); return isNaN(d.getTime())?null:d; }
     function remDaysOf(rec, fdStr){
       if(!rec.expDate) return null;
+      if(rec.category === '粒子') return null;
       const e = parseDate(rec.expDate), d = parseDate(fdStr);
       if(!e || !d) return null;
       return Math.round((e - d) / 86400000);
@@ -1336,9 +1337,26 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
 
     function bindFilters(){
       ['cat','sku','sup','risk','zero'].forEach(k => {
-        document.getElementById('filter-' + k).addEventListener('change', ev => { filters[k] = ev.target.value; renderAll(); });
+        document.getElementById('filter-' + k).addEventListener('change', ev => {
+          filters[k] = ev.target.value;
+          if(k === 'cat') updateLinkedFilters();
+          renderAll();
+        });
       });
       document.getElementById('filter-date').addEventListener('change', ev => { filters.date = ev.target.value || BASE_DATE; renderAll(); });
+    }
+
+    // 品类筛选变化时，动态更新 SKU 和供应商下拉选项
+    function updateLinkedFilters(){
+      const cat = filters.cat;
+      const base = cat === '全部' ? RAW : RAW.filter(r => r.category === cat);
+      const uniq = key => [...new Set(base.map(r => r[key]))].filter(v => v !== '' && v != null).sort();
+      fillSelect('filter-sku', uniq('sku'));
+      fillSelect('filter-sup', uniq('supplier'));
+      const skuEl = document.getElementById('filter-sku');
+      const supEl = document.getElementById('filter-sup');
+      if(skuEl.value !== filters.sku) filters.sku = skuEl.value;
+      if(supEl.value !== filters.sup) filters.sup = supEl.value;
     }
 
     window.addEventListener('resize', () => {
