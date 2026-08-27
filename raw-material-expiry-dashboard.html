@@ -232,8 +232,13 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     .chart-box { width: 100%; height: 380px; }
 
     .rank-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--gap); margin-bottom: var(--gap); }
-    @media (max-width: 1400px) { .rank-row { grid-template-columns: 1fr; } }
+    @media (max-width: 1400px) { .rank-row { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 900px) { .rank-row { grid-template-columns: 1fr; } }
     .rank-row .chart-box { height: 360px; }
+
+    .replenishment-row { display: grid; grid-template-columns: 2fr 1fr; gap: var(--gap); margin-bottom: var(--gap); align-items: start; }
+    @media (max-width: 1200px) { .replenishment-row { grid-template-columns: 1fr; } }
+    .replenishment-row .rules-row { margin-bottom: 0; }
 
     .traffic-light-row {
       display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -330,13 +335,26 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       .traffic-missing .traffic-export { grid-column: 2; justify-self: start; }
     }
 
-    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .data-table th, .data-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--gridline); white-space: nowrap; }
-    .data-table th { color: var(--text-secondary); font-weight: 600; background: var(--surface-1); position: sticky; top: 0; z-index: 1; }
-    .data-table tr:hover td { background: var(--surface-1); }
-    .data-table td { color: var(--text-primary); }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    .data-table th, .data-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid rgba(22,79,74,0.08); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .data-table th { color: #164f4a; font-weight: 600; background: #f4f8f7; position: sticky; top: 0; z-index: 1; border-bottom: 2px solid rgba(22,79,74,0.16); }
+    .data-table tr:hover td { background: rgba(244,248,247,0.6); }
+    .data-table td { color: #15252d; }
     .data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
     .data-table .center { text-align: center; }
+    .data-table .col-mat { width: 14%; }
+    .data-table .col-sku { width: 16%; }
+    .data-table .col-batch { width: 11%; }
+    .data-table .col-num { width: 9%; }
+    .data-table .col-date { width: 9%; }
+    .data-table .col-rem { width: 7%; }
+    .data-table .col-status { width: 7%; }
+    .data-table .col-action { width: 8%; }
+    .data-table .col-flavor { width: 10%; white-space: normal !important; overflow: visible; }
+    .data-table .mat-cell strong { display: block; font-size: 13px; color: #164f4a; }
+    .data-table .mat-cell span { display: block; font-size: 11px; color: #7a8a87; }
+    .data-table .flavor-cell-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+    .data-table .flavor-tag-item { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 11px; background: rgba(22,79,74,0.08); color: #164f4a; border: 1px solid rgba(22,79,74,0.12); }
 
     .tag { display: inline-flex; align-items: center; justify-content: center; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
     .tag-critical { background: rgba(208,59,59,0.12); color: var(--status-critical); }
@@ -361,7 +379,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     .table-scroll { max-height: 330px; overflow-y: auto; }
     .table-scroll::-webkit-scrollbar { width: 6px; }
     .table-scroll::-webkit-scrollbar-thumb { background: var(--gridline); border-radius: 3px; }
-    .detail-scroll { max-height: 460px; overflow-y: auto; overflow-x: auto; }
+    .detail-scroll { max-height: 460px; overflow-y: auto; overflow-x: hidden; }
     .detail-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
     .detail-scroll::-webkit-scrollbar-thumb { background: var(--gridline); border-radius: 3px; }
     .detail-scroll .data-table thead th { position: sticky; top: 0; z-index: 1; }
@@ -459,31 +477,37 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       </div>
     </section>
 
-    <section class="card" style="margin-bottom:16px;">
-      <div class="card-title">批次预警明细 <span class="card-sub">按剩余天数升序 · 滚动显示</span></div>
-      <div class="detail-scroll">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>仓库</th><th>物料编码</th><th>SKU名称</th><th>批次号(最近到期)</th>
-              <th class="num">实际耗用量</th><th class="num">期末数量</th><th class="num">期末金额(元)</th>
-              <th>生产日期</th><th>到期日期</th><th class="center">剩余天数</th>
-              <th class="center">风险等级</th><th class="center">建议动作</th>
-            </tr>
-          </thead>
-          <tbody id="detail-body"></tbody>
-        </table>
+    <section class="replenishment-row">
+      <div class="card">
+        <div class="card-title">批次预警明细 <span class="card-sub">按剩余天数升序 · 滚动显示</span></div>
+        <div class="detail-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="col-sku">物料</th>
+                <th class="col-batch">批次</th>
+                <th class="num col-num">库存数量</th>
+                <th class="num col-num">库存金额</th>
+                <th class="col-date">到期日期</th>
+                <th class="center col-rem">剩余天数</th>
+                <th class="center col-status">效期状态</th>
+                <th class="center col-action">建议动作</th>
+                <th class="col-flavor">可耗用口味</th>
+              </tr>
+            </thead>
+            <tbody id="detail-body"></tbody>
+          </table>
+        </div>
       </div>
-    </section>
-
-    <section class="card rules-row">
-      <div class="rules">
-        <span class="rules-icon">⚠️</span>
-        <span class="rules-title">预警规则</span>
-        <div class="rule-item"><span class="dot" style="background:var(--status-critical)"></span>剩余天数 &lt; 0：已过期 → <span class="tag-action-red">报废处理</span></div>
-        <div class="rule-item"><span class="dot" style="background:var(--cat-orange)"></span>0-90天：临期 → <span class="tag-action-orange">尽快使用/调拨</span></div>
-        <div class="rule-item"><span class="dot" style="background:var(--cat-aqua)"></span>&gt; 90天：正常 → <span class="tag-action-green">持续关注</span></div>
-        <div class="rule-item"><span class="dot" style="background:var(--status-warning)"></span>无保质期：不参与风险统计</div>
+      <div class="card rules-row">
+        <div class="rules">
+          <span class="rules-icon">⚠️</span>
+          <span class="rules-title">预警规则</span>
+          <div class="rule-item"><span class="dot" style="background:var(--status-critical)"></span>剩余天数 &lt; 0：已过期 → <span class="tag-action-red">报废处理</span></div>
+          <div class="rule-item"><span class="dot" style="background:var(--cat-orange)"></span>0-90天：临期 → <span class="tag-action-orange">尽快使用/调拨</span></div>
+          <div class="rule-item"><span class="dot" style="background:var(--cat-aqua)"></span>&gt; 90天：正常 → <span class="tag-action-green">持续关注</span></div>
+          <div class="rule-item"><span class="dot" style="background:var(--status-warning)"></span>无保质期：不参与风险统计</div>
+        </div>
       </div>
     </section>
 
@@ -949,22 +973,22 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       document.getElementById('detail-body').innerHTML = sorted.map(r => {
         const remState = r.remDays === null ? 'missing' : (r.remDays < 0 ? 'expired' : (r.remDays <= 30 ? 'red' : (r.remDays <= 90 ? 'yellow' : 'green')));
         const actCls = r.remDays === null ? 'tag-action-blue' : (r.remDays < 0 ? 'tag-action-red' : (r.remDays <= 90 ? 'tag-action-orange' : 'tag-action-green'));
+        const flavorHtml = r.flavor && r.flavor !== '—'
+          ? '<div class="flavor-cell-tags">' + r.flavor.split('、').map(f => `<span class="flavor-tag-item">${escapeHtml(f)}</span>`).join('') + '</div>'
+          : '—';
         return `
         <tr>
-          <td>${escapeHtml(r.wh)}</td>
-          <td>${escapeHtml(r.mat)}</td>
-          <td>${escapeHtml(r.sku)}</td>
-          <td>${escapeHtml(r.batch)}</td>
-          <td class="num">${fmtNum(r.consume)}</td>
+          <td class="mat-cell"><strong>${escapeHtml(r.sku || '未标注物料')}</strong><span>${escapeHtml(r.mat)}</span></td>
+          <td>${escapeHtml(r.batch || '—')}</td>
           <td class="num">${fmtNum(r.endQty)}</td>
           <td class="num">${fmtMoney(r.endAmt)}</td>
-          <td>${r.prodDate || '—'}</td>
-          <td>${r.expDate || '—'}</td>
+          <td><strong>${r.expDate || '未标注'}</strong></td>
           <td class="center"><span class="rem-badge rem-${remState}">${r.remDays === null ? '—' : r.remDays + ' 天'}</span></td>
           <td class="center"><span class="status-badge status-${remState}">${tagText[r.level]}</span></td>
           <td class="center"><span class="${actCls}">${escapeHtml(r.action)}</span></td>
+          <td class="col-flavor">${flavorHtml}</td>
         </tr>`;
-      }).join('') || '<tr><td colspan="12" style="text-align:center;color:var(--text-muted)">无符合条件的数据</td></tr>';
+      }).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-muted)">无符合条件的数据</td></tr>';
     }
 
     function trafficDayLabel(days){
@@ -1402,6 +1426,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
           }).length;
           renderAll();
           const totalFlavors = Array.from(newMap.values()).reduce((s,a) => s+a.length, 0);
+          window.parent.postMessage({ type: 'bom-uploaded', file: file.name, records: Array.from(newMap.entries()).map(([mat, flavors]) => ({ mat, flavors })) }, '*');
           alert('✅ BOM口味解析完成！\n解析sheet数：' + sheetCount + '\n料号→口味映射：' + newMap.size + ' 条\n口味记录：' + totalFlavors + ' 条\n当前库存匹配：' + matched + ' 条');
         } catch(err){
           console.error(err);
