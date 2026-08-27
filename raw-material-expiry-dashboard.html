@@ -199,10 +199,14 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       gap: var(--gap); margin-bottom: var(--gap); }
     .kpi-card {
       background: var(--surface-card); border: 1px solid var(--border);
+      border-left: 4px solid transparent;
       border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px;
       display: flex; flex-direction: column; gap: 10px; transition: transform .2s;
     }
     .kpi-card:hover { transform: translateY(-2px); }
+    .kpi-card.kpi-critical { border-left-color: #c0392b; background: rgba(208,59,59,0.03); }
+    .kpi-card.kpi-red { border-left-color: #c0392b; background: rgba(208,59,59,0.03); }
+    .kpi-card.kpi-amber { border-left-color: #e65100; background: rgba(245,158,11,0.03); }
     .kpi-header { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 13px; }
     .kpi-icon { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; font-size: 16px; }
     .kpi-value { font-size: 24px; font-weight: 700; display: flex; align-items: baseline; gap: 4px; }
@@ -499,8 +503,8 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
     const fmtInt = (n) => Number(n).toLocaleString('zh-CN', { maximumFractionDigits: 0 });
     const escapeHtml = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-    const kpiIconBg = { orange:'rgba(235,104,52,0.12)', yellow:'rgba(237,161,0,0.15)', aqua:'rgba(27,175,122,0.12)', critical:'rgba(208,59,59,0.12)', blue:'rgba(42,120,214,0.12)' };
-    const kpiIconColor = { orange:'var(--cat-orange)', yellow:'#b47b00', aqua:'var(--cat-aqua)', critical:'var(--status-critical)', blue:'var(--cat-blue)' };
+    const kpiIconBg = { orange:'rgba(235,104,52,0.12)', yellow:'rgba(237,161,0,0.15)', aqua:'rgba(27,175,122,0.12)', critical:'rgba(208,59,59,0.12)', blue:'rgba(42,120,214,0.12)', red:'rgba(208,59,59,0.15)', amber:'rgba(245,158,11,0.15)' };
+    const kpiIconColor = { orange:'var(--cat-orange)', yellow:'#b47b00', aqua:'var(--cat-aqua)', critical:'var(--status-critical)', blue:'var(--cat-blue)', red:'#c0392b', amber:'#e65100' };
     const rangeColors = ['critical','orange','yellow','blue','aqua','green'];
     const rankColors = ['critical','orange','yellow','blue','aqua','green','violet','red'];
     const catColors = ['orange','yellow','blue','green','violet','red','aqua','gray'];
@@ -547,13 +551,15 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
 
     // ===== 各视图数据计算 =====
     function computeKPI(view){
-      let totalStock = 0, expiredStock = 0, nearStock = 0, nearAmt = 0, expiredAmt = 0;
+      let totalStock = 0, expiredStock = 0, expiredAmt = 0;
+      let highStock = 0, highAmt = 0, midStock = 0, midAmt = 0;
       const endAmtMap = {}, begAmtMap = {}, begQtyMap = {};
       view.forEach(r => {
         totalStock += r.stock;
         if(r.remDays !== null){
           if(r.remDays < 0){ expiredStock += r.stock; expiredAmt += r.bamt; }
-          else if(r.remDays <= 90){ nearStock += r.stock; nearAmt += r.bamt; }
+          else if(r.remDays <= 30){ highStock += r.stock; highAmt += r.bamt; }
+          else if(r.remDays <= 90){ midStock += r.stock; midAmt += r.bamt; }
         }
         endAmtMap[r.mat] = r.endAmt; begAmtMap[r.mat] = r.begAmt; begQtyMap[r.mat] = r.begQty;
       });
@@ -564,12 +570,14 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       const dQty = totalBegQty > 0 ? (totalStock - totalBegQty) / totalBegQty * 100 : 0;
       return [
         { label:'库存总量', value:totalStock, unit:'', delta:dQty, icon:'📦', color:'orange', goodUp:true, int:true },
-        { label:'库存总金额', value:totalEndAmt/1000, unit:'千元', delta:dAmt, icon:'¥', color:'yellow', goodUp:true, money:true, int:true },
+        { label:'库存总金额', value:totalEndAmt/1000, unit:'千元', delta:dAmt, icon:'¥', color:'blue', goodUp:true, money:true, int:true },
         { label:'物料数', value:view.length, unit:'种', delta:null, icon:'🏷️', color:'aqua', goodUp:true },
-        { label:'临期库存量', value:nearStock, unit:'', delta:null, icon:'⏰', color:'yellow', goodUp:false, int:true },
-        { label:'临期库存金额', value:nearAmt/1000, unit:'千元', delta:null, icon:'💰', color:'yellow', goodUp:false, money:true, int:true },
         { label:'已过期库存量', value:expiredStock, unit:'', delta:null, icon:'⚠️', color:'critical', goodUp:false, int:true },
-        { label:'已过期库存金额', value:expiredAmt/1000, unit:'千元', delta:null, icon:'💸', color:'critical', goodUp:false, money:true, int:true }
+        { label:'已过期库存金额', value:expiredAmt/1000, unit:'千元', delta:null, icon:'💸', color:'critical', goodUp:false, money:true, int:true },
+        { label:'高风险批次量(≤30天)', value:highStock, unit:'', delta:null, icon:'🔴', color:'red', goodUp:false, int:true },
+        { label:'高风险批次金额', value:highAmt/1000, unit:'千元', delta:null, icon:'💰', color:'red', goodUp:false, money:true, int:true },
+        { label:'中风险批次量(31-90天)', value:midStock, unit:'', delta:null, icon:'🟡', color:'amber', goodUp:false, int:true },
+        { label:'中风险批次金额', value:midAmt/1000, unit:'千元', delta:null, icon:'💰', color:'amber', goodUp:false, money:true, int:true }
       ];
     }
 
@@ -674,8 +682,9 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
           deltaHtml = `<span class="${cls}">${arrow} ${Math.abs(k.delta).toFixed(2)}%</span><span style="color:${colors().muted}">较期初</span>`;
         }
         const val = k.pct ? k.value.toFixed(2) : (k.int ? fmtInt(k.value) : (k.money ? fmtMoney(k.value) : fmtNum(k.value)));
+        const riskCls = (k.color === 'critical' || k.color === 'red' || k.color === 'amber') ? ` kpi-${k.color}` : '';
         return `
-          <div class="kpi-card">
+          <div class="kpi-card${riskCls}">
             <div class="kpi-header">
               <span class="kpi-icon" style="background:${kpiIconBg[k.color]};color:${kpiIconColor[k.color]}">${k.icon}</span>
               ${k.label}
