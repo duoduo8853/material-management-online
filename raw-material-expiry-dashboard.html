@@ -351,6 +351,18 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     .detail-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
     .detail-scroll::-webkit-scrollbar-thumb { background: var(--gridline); border-radius: 3px; }
     .detail-scroll .data-table thead th { position: sticky; top: 0; z-index: 1; }
+    .rem-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+    .rem-badge.rem-expired { background: #fde8e8; color: #c0392b; }
+    .rem-badge.rem-red { background: #fff3e0; color: #e65100; }
+    .rem-badge.rem-yellow { background: #fffde7; color: #f9a825; }
+    .rem-badge.rem-green { background: #e8f5e9; color: #2e7d32; }
+    .rem-badge.rem-missing { background: #f0f0f0; color: #9e9e9e; }
+    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+    .status-badge.status-expired { background: #fde8e8; color: #c0392b; }
+    .status-badge.status-red { background: #fff3e0; color: #e65100; }
+    .status-badge.status-yellow { background: #fffde7; color: #f9a825; }
+    .status-badge.status-green { background: #e8f5e9; color: #2e7d32; }
+    .status-badge.status-missing { background: #f0f0f0; color: #9e9e9e; }
     .upload-hint { color: var(--text-muted); font-size: 12px; margin-bottom: 16px; }
   </style>
 </head>
@@ -415,18 +427,6 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       </div>
     </section>
 
-    <section class="card top10-card">
-      <div class="card-title">高风险 SKU TOP10</div>
-      <div class="table-scroll">
-        <table class="data-table">
-          <thead>
-            <tr><th>料号</th><th>SKU名称</th><th>口味</th><th>批次号</th><th class="num">金额(元)</th><th class="center">过期天数</th><th class="center">建议动作</th></tr>
-          </thead>
-          <tbody id="top10-body"></tbody>
-        </table>
-      </div>
-    </section>
-
     <section class="kpi-row" id="kpi-row"></section>
 
     <section class="rank-row">
@@ -471,8 +471,6 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         <div class="rule-item"><span class="dot" style="background:var(--status-warning)"></span>无保质期：不参与风险统计</div>
       </div>
     </section>
-
-    <section class="traffic-light-row" id="traffic-light-row" aria-label="效期红黄绿灯状态"></section>
 
     <p class="footer-note" id="footer-note"></p>
   </div>
@@ -917,7 +915,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         return ra - rb;
       });
       document.getElementById('detail-body').innerHTML = sorted.map(r => {
-        const remColor = r.remDays === null ? colors().primary : (r.remDays < 0 ? colors().critical : (r.remDays <= 90 ? colors().serious : colors().primary));
+        const remState = r.remDays === null ? 'missing' : (r.remDays < 0 ? 'expired' : (r.remDays <= 30 ? 'red' : (r.remDays <= 90 ? 'yellow' : 'green')));
         const actCls = r.remDays === null ? 'tag-action-blue' : (r.remDays < 0 ? 'tag-action-red' : (r.remDays <= 90 ? 'tag-action-orange' : 'tag-action-green'));
         return `
         <tr>
@@ -930,8 +928,8 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
           <td class="num">${fmtMoney(r.endAmt)}</td>
           <td>${r.prodDate || '—'}</td>
           <td>${r.expDate || '—'}</td>
-          <td class="center" style="color:${remColor};font-weight:600">${r.remDays === null ? '—' : r.remDays}</td>
-          <td class="center"><span class="tag ${tagClass[r.level]}">${tagText[r.level]}</span></td>
+          <td class="center"><span class="rem-badge rem-${remState}">${r.remDays === null ? '—' : r.remDays + ' 天'}</span></td>
+          <td class="center"><span class="status-badge status-${remState}">${tagText[r.level]}</span></td>
           <td class="center"><span class="${actCls}">${escapeHtml(r.action)}</span></td>
         </tr>`;
       }).join('') || '<tr><td colspan="12" style="text-align:center;color:var(--text-muted)">无符合条件的数据</td></tr>';
