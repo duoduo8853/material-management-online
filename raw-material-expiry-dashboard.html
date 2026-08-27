@@ -212,8 +212,9 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     .delta-down { color: var(--status-critical); }
     .delta-na { color: var(--text-muted); }
 
-    .charts-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap); margin-bottom: var(--gap); }
-    @media (max-width: 1400px) { .charts-row { grid-template-columns: 1fr; } }
+    .charts-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--gap); margin-bottom: var(--gap); }
+    @media (max-width: 1200px) { .charts-row { grid-template-columns: 1fr; } }
+    .top10-card { margin-bottom: var(--gap); }
     .chart-box { width: 100%; height: 380px; }
 
     .rank-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--gap); margin-bottom: var(--gap); }
@@ -399,8 +400,6 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
     <p class="upload-hint">数据来源《模版-原物料v2.xlsx》。主表=金额-数量-单价表（物料级，每行一个物料，期末数量≤0 的不显示）。批次表按物料编码关联，提供仓库(库存地点)与批次号（取最近到期批次）；SKU=金额表.物料描述；实际耗用量=耗用量（按料号聚合）；期末金额/期末数量/单价=金额表；剩余天数=批次号第4-9位(YYMMDD生产日期)+保质期(天)−计算日期。口味=调配液sheet中BOM组件料号关联的调配液名称提取。风险等级：≤0天已过期(报废处理)、0-90天(尽快使用/调拨)、&gt;90天(持续关注)。含字母E的物料编码已做双键兼容关联。</p>
 
-    <section class="kpi-row" id="kpi-row"></section>
-
     <section class="charts-row">
       <div class="card">
         <div class="card-title">效期区间分布 <span class="card-sub">单位：KG（库存数量）</span></div>
@@ -410,18 +409,21 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         <div class="card-title">临期 / 过期预测趋势 <span class="card-sub">每 7 天测算 · 未来 180 天 · KG</span></div>
         <div id="chart-trend" class="chart-box"></div>
       </div>
-      <div class="card">
-        <div class="card-title">高风险 SKU TOP10</div>
-        <div class="table-scroll">
-          <table class="data-table">
-            <thead>
-              <tr><th>料号</th><th>SKU名称</th><th>口味</th><th>批次号</th><th class="num">金额(元)</th><th class="center">过期天数</th><th class="center">建议动作</th></tr>
-            </thead>
-            <tbody id="top10-body"></tbody>
-          </table>
-        </div>
+    </section>
+
+    <section class="card top10-card">
+      <div class="card-title">高风险 SKU TOP10</div>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr><th>料号</th><th>SKU名称</th><th>口味</th><th>批次号</th><th class="num">金额(元)</th><th class="center">过期天数</th><th class="center">建议动作</th></tr>
+          </thead>
+          <tbody id="top10-body"></tbody>
+        </table>
       </div>
     </section>
+
+    <section class="kpi-row" id="kpi-row"></section>
 
     <section class="rank-row">
       <div class="card">
