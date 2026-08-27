@@ -705,6 +705,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       const nearValues = data.near || [];
       const expiredValues = data.expired || [];
       const lastIndex = data.dates.length - 1;
+      const currentValue = values => values.length > 0 ? values[0] : 0;
       const latestValue = values => lastIndex >= 0 ? values[lastIndex] : 0;
 
       trendChart.setOption({
@@ -746,7 +747,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
           textStyle:{ color:c.secondary, fontSize:11 },
           formatter:name => {
             const values = name === nearName ? nearValues : expiredValues;
-            return `${name}  ${fmtInt(latestValue(values))} KG`;
+            return `${name}  ${fmtInt(currentValue(values))} KG`;
           }
         },
         xAxis: {
@@ -822,8 +823,8 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
               symbolSize:10,
               itemStyle:{ color:c.critical, borderWidth:2, borderColor:cssVar('--surface-card') },
               label:{
-                show:lastIndex >= 0,
-                position:'left',
+                show:data.dates.length > 0,
+                position:'right',
                 distance:8,
                 color:c.primary,
                 fontSize:10,
@@ -835,11 +836,18 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
                 padding:[3,6],
                 formatter:param => `当前过期 ${fmtInt(param.value)}`
               },
-              data:lastIndex >= 0 ? [{
+              data:data.dates.length > 0 ? [{
                 name:'当前过期',
-                coord:[data.dates[lastIndex], latestValue(expiredValues)],
-                value:latestValue(expiredValues)
+                coord:[data.dates[0], currentValue(expiredValues)],
+                value:currentValue(expiredValues)
               }] : []
+            },
+            markLine:{
+              silent:true,
+              symbol:'none',
+              label:{ show:false },
+              lineStyle:{ color:c.critical, type:'dashed', width:1, opacity:0.3 },
+              data:lastIndex >= 0 ? [{ xAxis:data.dates[lastIndex] }] : []
             }
           }
         ]
@@ -1081,12 +1089,10 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       renderKpi(computeKPI(view));
       renderExpiryChart(computeExpiry(view));
       renderTrendChart(computeTrend(view, filters.date));
-      renderTop10(computeTop10(view));
       renderWarehouseChart(computeWarehouse(view));
       renderCategoryChart(computeCategory(view));
       renderSupplierChart(computeSupplier(view));
       renderDetail(view);
-      renderTrafficLights(computeTrafficLights(view));
       const noShelf = RAW.filter(r => !r.expDate).length;
       document.getElementById('footer-note').textContent =
         `数据来源：《模版-原物料v2.xlsx》｜主表：金额-数量-单价（物料级，每行一个物料，仅显示期末数量>0；批次号取最近到期批次）｜计算日期 ${filters.date}｜物料总数 ${RAW.length}（其中 ${noShelf} 个无保质期记录，不参与风险统计）｜当前筛选命中 ${view.length} 条。`;
