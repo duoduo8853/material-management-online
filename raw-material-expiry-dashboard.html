@@ -389,12 +389,6 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
             <option value="none">无保质期</option>
           </select>
         </div>
-        <button
-          class="btn btn-export"
-          id="export-unknown-category"
-          type="button"
-          onclick="exportUnknownCategories()"
-        >导出未知品类</button>
         <button class="btn btn-primary" onclick="document.getElementById('upload-input').click()">⬆️ 重新上传Excel</button>
         <input type="file" id="upload-input" class="file-input" accept=".xlsx,.xls" onchange="uploadData(event)">
         <button class="btn btn-export" onclick="document.getElementById('bom-input').click()">🍯 上传BOM(调配液)</button>
@@ -562,7 +556,6 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       const totalEndAmt = Object.values(endAmtMap).reduce((a,b)=>a+b,0);
       const totalBegAmt = Object.values(begAmtMap).reduce((a,b)=>a+b,0);
       const totalBegQty = Object.values(begQtyMap).reduce((a,b)=>a+b,0);
-      const fefo = totalStock > 0 ? (1 - expiredStock / totalStock) * 100 : 0;
       const dAmt = totalBegAmt > 0 ? (totalEndAmt - totalBegAmt) / totalBegAmt * 100 : 0;
       const dQty = totalBegQty > 0 ? (totalStock - totalBegQty) / totalBegQty * 100 : 0;
       return [
@@ -572,8 +565,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         { label:'临期库存量', value:nearStock, unit:'', delta:null, icon:'⏰', color:'yellow', goodUp:false, int:true },
         { label:'临期库存金额', value:nearAmt/1000, unit:'千元', delta:null, icon:'💰', color:'yellow', goodUp:false, money:true, int:true },
         { label:'已过期库存量', value:expiredStock, unit:'', delta:null, icon:'⚠️', color:'critical', goodUp:false, int:true },
-        { label:'已过期库存金额', value:expiredAmt/1000, unit:'千元', delta:null, icon:'💸', color:'critical', goodUp:false, money:true, int:true },
-        { label:'FEFO执行率', value:fefo, unit:'%', delta:null, icon:'🎯', color:'blue', goodUp:true, pct:true }
+        { label:'已过期库存金额', value:expiredAmt/1000, unit:'千元', delta:null, icon:'💸', color:'critical', goodUp:false, money:true, int:true }
       ];
     }
 
@@ -1108,96 +1100,6 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       fillSelect('filter-cat', uniq('category'));
       fillSelect('filter-sku', uniq('sku'));
       fillSelect('filter-sup', uniq('supplier'));
-      updateUnknownCategoryExportButton();
-    }
-
-    // ===== 未知品类导出 =====
-    function isUnknownCategory(value){
-      const category = String(value || '').trim();
-      return !category || ['未知','未分类','未标注品类','unknown'].includes(category.toLowerCase());
-    }
-
-    function collectUnknownCategoryMaterials(){
-      const materials = new Map();
-      RAW.forEach(record => {
-        if(!isUnknownCategory(record.category)) return;
-
-        const materialCode = String(record.mat || '').trim() || '未编码';
-        const materialName = String(record.sku || '').trim() || '未标注物料';
-        const key = materialCode !== '未编码' ? materialCode : materialName;
-        const current = materials.get(key) || {
-          materialCode,
-          materialName,
-          suppliers:new Set(),
-          warehouses:new Set(),
-          quantity:0,
-          amount:0
-        };
-        const supplier = String(record.supplier || '').trim();
-        const warehouse = String(record.wh || '').trim();
-        if(supplier && supplier !== '未知' && supplier !== '未标注供应商') current.suppliers.add(supplier);
-        if(warehouse && warehouse !== '未知') current.warehouses.add(warehouse);
-        current.quantity += Number(record.endQty != null ? record.endQty : record.stock) || 0;
-        current.amount += Number(record.endAmt != null ? record.endAmt : record.bamt) || 0;
-        materials.set(key, current);
-      });
-      return Array.from(materials.values()).sort((a,b) => b.amount - a.amount);
-    }
-
-    function updateUnknownCategoryExportButton(){
-      const button = document.getElementById('export-unknown-category');
-      if(!button) return;
-      const count = collectUnknownCategoryMaterials().length;
-      button.disabled = count === 0;
-      button.textContent = count ? `导出未知品类 (${count})` : '无未知品类';
-      button.title = count
-        ? `导出 ${count} 个待补充品类的物料`
-        : '当前数据没有待补充品类的物料';
-    }
-
-    function exportUnknownCategories(){
-      const materials = collectUnknownCategoryMaterials();
-      if(!materials.length){
-        alert('当前数据没有品类为未知或未分类的物料。');
-        return;
-      }
-      if(typeof XLSX === 'undefined'){
-        alert('Excel 导出组件尚未加载，请刷新页面后重试。');
-        return;
-      }
-
-      const rows = materials.map((item,index) => ({
-        序号:index + 1,
-        料号:item.materialCode,
-        物料描述:item.materialName,
-        补充品类:'',
-        供应商:Array.from(item.suppliers).join('、'),
-        仓库:Array.from(item.warehouses).join('、'),
-        期末数量:Math.round(item.quantity * 1000) / 1000,
-        期末金额:Math.round(item.amount * 100) / 100,
-        备注:''
-      }));
-      const worksheet = XLSX.utils.json_to_sheet(rows);
-      worksheet['!cols'] = [
-        {wch:8}, {wch:22}, {wch:48}, {wch:18}, {wch:34},
-        {wch:16}, {wch:14}, {wch:16}, {wch:24}
-      ];
-      if(worksheet['!ref']) worksheet['!autofilter'] = { ref:worksheet['!ref'] };
-
-      const instructions = XLSX.utils.aoa_to_sheet([
-        ['未知品类物料补充说明'],
-        ['待补充物料数', materials.length],
-        ['数据日期', BASE_DATE],
-        ['填写要求', '仅填写“品类待补充”工作表中的“补充品类”列，请勿修改料号。'],
-        ['更新方式', '填写完成后，将“料号”和“补充品类”合并至原始库存文件的“品类”工作表，再通过系统重新导入完整库存文件。'],
-        ['注意', '本文件仅包含未知品类物料，不是完整库存文件，请勿直接替换系统库存数据。']
-      ]);
-      instructions['!cols'] = [{wch:18}, {wch:96}];
-
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, '品类待补充');
-      XLSX.utils.book_append_sheet(workbook, instructions, '填写说明');
-      XLSX.writeFile(workbook, `未知品类物料待补充_${BASE_DATE.replace(/-/g,'')}.xlsx`);
     }
 
     // ===== BOM口味解析辅助函数（全局，供uploadBom使用） =====
