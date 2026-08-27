@@ -347,6 +347,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     .table-scroll { max-height: 330px; overflow-y: auto; }
     .table-scroll::-webkit-scrollbar { width: 6px; }
     .table-scroll::-webkit-scrollbar-thumb { background: var(--gridline); border-radius: 3px; }
+    .detail-scroll { max-height: 460px; overflow-y: auto; overflow-x: auto; }
+    .detail-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .detail-scroll::-webkit-scrollbar-thumb { background: var(--gridline); border-radius: 3px; }
+    .detail-scroll .data-table thead th { position: sticky; top: 0; z-index: 1; }
     .upload-hint { color: var(--text-muted); font-size: 12px; margin-bottom: 16px; }
   </style>
 </head>
@@ -441,8 +445,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     </section>
 
     <section class="card" style="margin-bottom:16px;">
-      <div class="card-title">批次预警明细 <span class="card-sub">按剩余天数升序</span></div>
-      <div style="overflow-x:auto;">
+      <div class="card-title">批次预警明细 <span class="card-sub">按剩余天数升序 · 滚动显示</span></div>
+      <div class="detail-scroll">
         <table class="data-table">
           <thead>
             <tr>
