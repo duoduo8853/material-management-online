@@ -389,10 +389,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
             <option value="none">无保质期</option>
           </select>
         </div>
-        <button class="btn btn-primary" onclick="document.getElementById('upload-input').click()">⬆️ 重新上传Excel</button>
-        <input type="file" id="upload-input" class="file-input" accept=".xlsx,.xls" onchange="uploadData(event)">
         <button class="btn btn-export" onclick="document.getElementById('bom-input').click()">🍯 上传BOM(调配液)</button>
         <input type="file" id="bom-input" class="file-input" accept=".xlsx,.xls" onchange="uploadBom(event)">
+        <button class="btn btn-primary" onclick="document.getElementById('upload-input').click()">⬆️ 重新上传Excel</button>
+        <input type="file" id="upload-input" class="file-input" accept=".xlsx,.xls" onchange="uploadData(event)">
         <button class="btn" onclick="renderAll()">⟳ 刷新</button>
       </div>
     </header>
