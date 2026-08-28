@@ -1243,6 +1243,29 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       const shelf = buildList(get('保质期'),'料号');
       const cat = buildList(get('品类'),'料号');
       const sup = buildList(get('供应商'),'料号');
+      // 构建供应商关键词映射，用于推断未匹配的供应商
+      const supplierKeywordMap = new Map();
+      const allSupplierNames = [];
+      const seenSup = new Set();
+      sup.forEach(o => {
+        const sn = String(o.row['供应商名称']||'').trim();
+        if(!sn || sn === '未知' || seenSup.has(sn)) return;
+        seenSup.add(sn);
+        allSupplierNames.push(sn);
+        let kw = sn;
+        kw = kw.replace(/[（(][^)）]*[)）]/g, '');
+        kw = kw.replace(/(股份有限公司|有限责任公司|有限公司|股份公司|集团)$/g, '');
+        kw = kw.replace(/(食用香精香料|香精香料|食用香料|食用香精|食品饮品配料|食品调料|食品配料|食品添加剂|食品科技|食品系统|调味品|生物科技|生物化学|生物工程|化学工程|化工科技|着色剂|农副产品|塑料制品|塑料着色剂|包装材料|包装制品|印刷包材|国际贸易|茶业|糖业|盐业|气体|机械|商贸|食品|生物|化工|贸易|科技|投资|包装|印刷|塑料|配料|香精|香料)/g, '');
+        kw = kw.replace(/(上海|广东|浙江|江苏|天津|北京|安徽|福建|海南|黑龙江|河南|山东|河北|四川|湖南|湖北|广西|云南|贵州|新疆|甘肃|陕西|辽宁|吉林|内蒙古|青海|宁夏|西藏|香港|澳门|苏州|昆山|杭州|南京|青岛|日照|廊坊|菏泽|潮州|新昌|诸城|中山|平湖|泾县|海口|开封|南通|厦门|漳州)/g, '');
+        kw = kw.trim();
+        if(kw.length >= 2 && !supplierKeywordMap.has(kw)) supplierKeywordMap.set(kw, sn);
+      });
+      function inferSupplier(desc){
+        if(!desc) return null;
+        const d = String(desc);
+        for(const [kw, sn] of supplierKeywordMap){ if(d.includes(kw)) return sn; }
+        return null;
+      }
       // 解析调配液sheet，建立料号→口味映射（逻辑同临期原料耗用预警 batch/index.vue）
       function extractFlavor(name){
         let f = String(name==null?'':name).trim().replace(/\s+/g,' ');
@@ -1324,7 +1347,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         const cRows = findAll(cat, matRaw);
         const category = cRows.length ? String(cRows[0]['品类']||'').trim() : '未知';
         const spRows = findAll(sup, matRaw);
-        const supplier = spRows.length ? String(spRows[0]['供应商名称']||'').trim() : '未知';
+        const supplier = spRows.length ? String(spRows[0]['供应商名称']||'').trim() : (inferSupplier(sku) || '未知');
         const consume = findAll(cons, matRaw).reduce((s,c)=>s+num(c['实际耗用量']),0);
         const bRows = findAll(batchLst, matRaw);
         let cand = bRows.map(br => {
