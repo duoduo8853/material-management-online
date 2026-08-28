@@ -236,9 +236,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     @media (max-width: 900px) { .rank-row { grid-template-columns: 1fr; } }
     .rank-row .chart-box { height: 360px; }
 
-    .replenishment-row { display: grid; grid-template-columns: 2fr 1fr; gap: var(--gap); margin-bottom: var(--gap); align-items: start; }
-    @media (max-width: 1200px) { .replenishment-row { grid-template-columns: 1fr; } }
-    .replenishment-row .rules-row { margin-bottom: 0; }
+    .replenishment-row { margin-bottom: var(--gap); }
+    .replenishment-row > .card { max-width: 1400px; margin: 0 auto; }
+
+    .rules-row.card { max-width: 1400px; margin: 0 auto var(--gap); }
 
     .traffic-light-row {
       display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
