@@ -1240,7 +1240,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       function codeKeys(v){
         if(v === null || v === undefined || v === '') return ['', null];
         if(typeof v === 'number') return ['', v];
-        const s = String(v).trim().toUpperCase().replace(/\s+/g, '');
+        const s = String(v).trim().toUpperCase().replace(/[\s,\u00A0\u200B-\u200D\uFEFF]/g, '');
         if(s === '' || s === 'NONE') return ['', null];
         // 仅当整个字符串是合法数字字面量（整数/小数/科学计数法，如 3120202E11）才取数字键；
         // 像 3120202K11 这种“数字+字母后缀”的码一律 nk=null，只按精确字符串匹配，避免 parseFloat 截断误关联
@@ -1269,7 +1269,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       const get = name => {
         const ws = wb.Sheets[name];
         if(!ws) return [];
-        return XLSX.utils.sheet_to_json(ws, { defval:'', raw:false }).map(r => {
+        return XLSX.utils.sheet_to_json(ws, { defval:'' }).map(r => {
           const o = {};
           for(const k in r) o[String(k).trim()] = r[k];
           return o;
