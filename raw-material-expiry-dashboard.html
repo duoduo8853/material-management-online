@@ -1279,16 +1279,17 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         let headerMap = null;
         for(let i = 0; i < Math.min(rows.length, 20); i++){
           const m = findBomHeader(rows[i]);
-          if(m.materialCode !== undefined && (m.flavor !== undefined || m.blendingName !== undefined)){
+          if((m.materialCode !== undefined || m.blendingCode !== undefined) && (m.flavor !== undefined || m.blendingName !== undefined)){
             headerMap = m;
             break;
           }
         }
         if(!headerMap) return;
+        const mcCol = headerMap.materialCode !== undefined ? headerMap.materialCode : headerMap.blendingCode;
         for(let i = 0; i < rows.length; i++){
           const row = rows[i];
-          if(headerMap.materialCode === undefined) continue;
-          const mc = String(row[headerMap.materialCode]||'').trim().replace(/\s+/g,' ');
+          if(mcCol === undefined) continue;
+          const mc = String(row[mcCol]||'').trim().replace(/\s+/g,' ');
           if(!mc || normH(mc) === normH('物料')) continue;
           const bn = headerMap.blendingName !== undefined ? String(row[headerMap.blendingName]||'').trim().replace(/\s+/g,' ') : '';
           const fl = headerMap.flavor !== undefined ? String(row[headerMap.flavor]||'').trim().replace(/\s+/g,' ') : '';
@@ -1399,16 +1400,17 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
             let headerMap = null;
             for(let i = 0; i < Math.min(rows.length, 20); i++){
               const m = findBomHeaderRow(rows[i]);
-              if(m.materialCode !== undefined && (m.flavor !== undefined || m.blendingName !== undefined)){
+              if((m.materialCode !== undefined || m.blendingCode !== undefined) && (m.flavor !== undefined || m.blendingName !== undefined)){
                 headerMap = m;
                 break;
               }
             }
             if(!headerMap) return;
+            const mcCol = headerMap.materialCode !== undefined ? headerMap.materialCode : headerMap.blendingCode;
             for(let i = 0; i < rows.length; i++){
               const row = rows[i];
-              if(headerMap.materialCode === undefined) continue;
-              const mc = String(row[headerMap.materialCode]||'').trim().replace(/\s+/g,' ');
+              if(mcCol === undefined) continue;
+              const mc = String(row[mcCol]||'').trim().replace(/\s+/g,' ');
               if(!mc || normH(mc) === normH('物料')) continue;
               const bn = headerMap.blendingName !== undefined ? String(row[headerMap.blendingName]||'').trim().replace(/\s+/g,' ') : '';
               const fl = headerMap.flavor !== undefined ? String(row[headerMap.flavor]||'').trim().replace(/\s+/g,' ') : '';
