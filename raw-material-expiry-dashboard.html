@@ -650,7 +650,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
 
     function computeTop10(view){
       return view.filter(r => r.remDays !== null).sort((a,b)=>a.remDays - b.remDays).slice(0,10)
-        .map(r => ({ mat:r.mat, name:r.sku, flavor: getFlavorFromBom(r.mat) !== '—' ? getFlavorFromBom(r.mat) : (r.flavor || '—'), batch:r.batch, amt:r.bamt, days:r.remDays, action:r.action, level:r.level }));
+        .map(r => { const bf = getFlavorFromBom(r.mat); return { mat:r.mat, name:r.sku, flavor: bf !== '—' ? bf : (r.sku && r.sku.includes('星巴克') ? '星巴克' : (r.flavor || '—')), batch:r.batch, amt:r.bamt, days:r.remDays, action:r.action, level:r.level }; });
     }
 
     function computeWarehouse(view){
@@ -974,7 +974,8 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       document.getElementById('detail-body').innerHTML = sorted.map(r => {
         const remState = r.remDays === null ? 'missing' : (r.remDays < 0 ? 'expired' : (r.remDays <= 30 ? 'red' : (r.remDays <= 90 ? 'yellow' : 'green')));
         const actCls = r.remDays === null ? 'tag-action-blue' : (r.remDays < 0 ? 'tag-action-red' : (r.remDays <= 90 ? 'tag-action-orange' : 'tag-action-green'));
-        const flavor = getFlavorFromBom(r.mat) !== '—' ? getFlavorFromBom(r.mat) : (r.flavor || '—');
+        const bomFlavor = getFlavorFromBom(r.mat);
+        const flavor = bomFlavor !== '—' ? bomFlavor : (r.sku && r.sku.includes('星巴克') ? '星巴克' : (r.flavor || '—'));
         const flavorHtml = flavor && flavor !== '—'
           ? '<div class="flavor-cell-tags">' + flavor.split('、').map(f => `<span class="flavor-tag-item">${escapeHtml(f)}</span>`).join('') + '</div>'
           : '—';
@@ -1176,10 +1177,10 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
     }
     const BOM_ALIASES = {
       blendingCode: ['调配液料号','调配液编码','调配液代码','BOM表头物料','表头物料'],
-      blendingName: ['调配液','调配液名称','调配液描述','BOM表头物料名称','表头物料名称'],
-      materialCode: ['物料','物料编码','物料号','料号','BOM组件料号'],
-      materialName: ['物料描述','物料名称','BOM组件名称','组件名称'],
-      flavor: ['口味','风味','产品口味','品味']
+      blendingName: ['调配液','调配液名称','调配液描述','BOM表头物料名称','表头物料名称','调配液品名','品名'],
+      materialCode: ['物料','物料编码','物料号','料号','BOM组件料号','组件料号','子件料号','子件物料','原料料号','原料编码','BOM子件料号','BOM子件编码','子件编码','原材料编码','原材料料号'],
+      materialName: ['物料描述','物料名称','BOM组件名称','组件名称','子件名称','原材料名称','原材料描述'],
+      flavor: ['口味','风味','产品口味','品味','口味名称','风味名称']
     };
     function findBomHeaderRow(row){
       const normalized = row.map(normH);
@@ -1196,7 +1197,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       const key = String(matCode||'').trim().replace(/\s+/g,' ');
       const entries = BOM_FLAVOR_MAP.get(matCode) || BOM_FLAVOR_MAP.get(key) || [];
       if(!entries.length) return '—';
-      return entries.map(e => e.flavor).join('、');
+      return [...new Set(entries.map(e => e.flavor))].join('、');
     }
 
     // ===== 上传重新计算 =====
@@ -1254,10 +1255,10 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       const normH = s => String(s==null?'':s).trim().toLowerCase().replace(/[（）()【】\[\]·:：/\\_\-\s]/g,'');
       const bomAliases = {
         blendingCode: ['调配液料号','调配液编码','调配液代码','BOM表头物料','表头物料'],
-        blendingName: ['调配液','调配液名称','调配液描述','BOM表头物料名称','表头物料名称'],
-        materialCode: ['物料','物料编码','物料号','料号','BOM组件料号'],
-        materialName: ['物料描述','物料名称','BOM组件名称','组件名称'],
-        flavor: ['口味','风味','产品口味','品味']
+        blendingName: ['调配液','调配液名称','调配液描述','BOM表头物料名称','表头物料名称','调配液品名','品名'],
+        materialCode: ['物料','物料编码','物料号','料号','BOM组件料号','组件料号','子件料号','子件物料','原料料号','原料编码','BOM子件料号','BOM子件编码','子件编码','原材料编码','原材料料号'],
+        materialName: ['物料描述','物料名称','BOM组件名称','组件名称','子件名称','原材料名称','原材料描述'],
+        flavor: ['口味','风味','产品口味','品味','口味名称','风味名称']
       };
       function findBomHeader(row){
         const normalized = row.map(normH);
@@ -1344,7 +1345,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
           else { level='low'; action='持续关注'; }
         }
         const fEntries = flavorMap.get(m) || flavorMap.get(String(matRaw||'').trim().replace(/\s+/g,' ')) || [];
-        const flavor = fEntries.length ? fEntries.map(f => f.flavor).join('、') : '—';
+        const flavor = fEntries.length ? [...new Set(fEntries.map(f => f.flavor))].join('、') : (sku.includes('星巴克') ? '星巴克' : '—');
         out.push({ wh:rep.wh, mat:m, sku, flavor, batch:rep.batch, stock:Math.round(endQty*1000)/1000,
           consume:Math.round(consume*100)/100, endQty:Math.round(endQty*1000)/1000, endAmt:Math.round(endAmt*100)/100,
           begQty:Math.round(begQty*1000)/1000, begAmt:Math.round(begAmt*100)/100, price:Math.round(price*100)/100,
