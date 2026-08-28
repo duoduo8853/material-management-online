@@ -1438,6 +1438,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
           RAW = recs;
           populateFilters();
           renderAll();
+          window.parent.postMessage({ type: 'inventory-data-uploaded' }, '*');
           alert('✅ 已基于上传的 Excel 重新计算，看板已更新！');
         } catch(err){
           console.error(err);
