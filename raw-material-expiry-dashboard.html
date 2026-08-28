@@ -1266,6 +1266,13 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         });
         return res;
       }
+      function pickField(row, cols){
+        for(const c of cols){
+          const v = row[c];
+          if(v !== undefined && v !== null && String(v).trim() !== '') return v;
+        }
+        return '';
+      }
       const get = name => {
         const ws = wb.Sheets[name];
         if(!ws) return [];
@@ -1276,6 +1283,18 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         });
       };
       const MAT_COLS = ['物料', '物料号', '料号', '物料编码'];
+      const SUP_COLS = ['供应商名称', '供应商', '供货商', '供货商名称', 'supplier'];
+      const CAT_COLS = ['品类', '物料品类', '物料类别', '类别', '分类', 'category'];
+      const BATCH_COLS = ['批次', '批次号', '批号', 'batch', 'batchcode'];
+      const WH_COLS = ['库存地点', '仓库', '库位', 'warehouse'];
+      const SHELF_COLS = ['保质期(天)', '保质期', '保质期天数', '保质期天', 'shelflife'];
+      const CONSUME_COLS = ['实际耗用量', '耗用量', '消耗量', 'consume'];
+      const ENDQTY_COLS = ['期末数量', '库存数量', '当前库存', '结存数量', '期末结存'];
+      const ENDAMT_COLS = ['期末金额', '库存金额', '结存金额', '期末结存金额'];
+      const BEGQTY_COLS = ['期初数量', '初始库存', '期初结存'];
+      const BEGAMT_COLS = ['期初金额', '初始金额', '期初结存金额'];
+      const PRICE_COLS = ['单价', '平均单价'];
+      const SKU_COLS = ['物料描述', '物料名称', '描述', '规格'];
       const amt = get('金额-数量-单价');
       const batchLst = buildList(get('批次'), MAT_COLS);
       const cons = buildList(get('耗用量'), MAT_COLS);
@@ -1287,7 +1306,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       const allSupplierNames = [];
       const seenSup = new Set();
       sup.forEach(o => {
-        const sn = String(o.row['供应商名称']||'').trim();
+        const sn = String(pickField(o.row, SUP_COLS)||'').trim();
         if(!sn || sn === '未知' || seenSup.has(sn)) return;
         seenSup.add(sn);
         allSupplierNames.push(sn);
@@ -1375,27 +1394,27 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       const out = [];
       amt.forEach(a => {
         const matRaw = MAT_COLS.map(c => a[c]).find(v => v) || '';
-        const endQty = num(a['期末数量']);
+        const endQty = num(pickField(a, ENDQTY_COLS));
         if(endQty <= 0) return;
         const mk = codeKeys(matRaw)[0] || (matRaw != null ? String(matRaw).trim() : '未知');
         const m = mk || '未知';
-        const endAmt = num(a['期末金额']), begAmt = num(a['期初金额']), begQty = num(a['期初数量']), price = num(a['单价']);
-        const sku = (String(a['物料描述']||'').trim()) || m;
+        const endAmt = num(pickField(a, ENDAMT_COLS)), begAmt = num(pickField(a, BEGAMT_COLS)), begQty = num(pickField(a, BEGQTY_COLS)), price = num(pickField(a, PRICE_COLS));
+        const sku = (String(pickField(a, SKU_COLS)||'').trim()) || m;
         const sRows = findAll(shelf, matRaw);
-        const shelfLife = sRows.length ? num(sRows[0]['保质期(天)']) : 0;
+        const shelfLife = sRows.length ? num(pickField(sRows[0], SHELF_COLS)) : 0;
         const cRows = findAll(cat, matRaw);
-        const category = cRows.length ? String(cRows[0]['品类']||'').trim() : '未知';
+        const category = cRows.length ? String(pickField(cRows[0], CAT_COLS)||'').trim() : '未知';
         const spRows = findAll(sup, matRaw);
         const supplier = (() => {
-      const s = spRows.length ? String(spRows[0]['供应商名称']||'').trim() : (inferSupplier(sku) || '未知');
+      const s = spRows.length ? String(pickField(spRows[0], SUP_COLS)||'').trim() : (inferSupplier(sku) || '未知');
       if(s === '未知' && sku.includes('瓶胚')) return '自制';
       return s;
     })();
-        const consume = findAll(cons, matRaw).reduce((s,c)=>s+num(c['实际耗用量']),0);
+        const consume = findAll(cons, matRaw).reduce((s,c)=>s+num(pickField(c, CONSUME_COLS)),0);
         const bRows = findAll(batchLst, matRaw);
         let cand = bRows.map(br => {
-          const bcode = String(br['批次']||'').trim();
-          const wh = String(br['库存地点']||'').trim() || '未知';
+          const bcode = String(pickField(br, BATCH_COLS)||'').trim();
+          const wh = String(pickField(br, WH_COLS)||'').trim() || '未知';
           const pd = parseBatch(bcode);
           let expDate = null;
           if(pd && shelfLife > 0) expDate = new Date(pd.getTime() + shelfLife*86400000);
