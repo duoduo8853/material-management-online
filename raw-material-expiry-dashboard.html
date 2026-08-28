@@ -974,8 +974,9 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       document.getElementById('detail-body').innerHTML = sorted.map(r => {
         const remState = r.remDays === null ? 'missing' : (r.remDays < 0 ? 'expired' : (r.remDays <= 30 ? 'red' : (r.remDays <= 90 ? 'yellow' : 'green')));
         const actCls = r.remDays === null ? 'tag-action-blue' : (r.remDays < 0 ? 'tag-action-red' : (r.remDays <= 90 ? 'tag-action-orange' : 'tag-action-green'));
-        const flavorHtml = r.flavor && r.flavor !== '—'
-          ? '<div class="flavor-cell-tags">' + r.flavor.split('、').map(f => `<span class="flavor-tag-item">${escapeHtml(f)}</span>`).join('') + '</div>'
+        const flavor = getFlavorFromBom(r.mat) !== '—' ? getFlavorFromBom(r.mat) : (r.flavor || '—');
+        const flavorHtml = flavor && flavor !== '—'
+          ? '<div class="flavor-cell-tags">' + flavor.split('、').map(f => `<span class="flavor-tag-item">${escapeHtml(f)}</span>`).join('') + '</div>'
           : '—';
         return `
         <tr>
