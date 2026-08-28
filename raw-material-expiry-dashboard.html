@@ -1274,7 +1274,11 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         return '';
       }
       const get = name => {
-        const ws = wb.Sheets[name];
+        let ws = wb.Sheets[name];
+        if(!ws){
+          const found = wb.SheetNames.find(n => n.includes(name) || name.includes(n));
+          if(found) ws = wb.Sheets[found];
+        }
         if(!ws) return [];
         return XLSX.utils.sheet_to_json(ws, { defval:'' }).map(r => {
           const o = {};
@@ -1283,7 +1287,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         });
       };
       const MAT_COLS = ['物料', '物料号', '料号', '物料编码'];
-      const SUP_COLS = ['供应商名称', '供应商', '供货商', '供货商名称', 'supplier'];
+      const SUP_COLS = ['供应商名称', '供应商', '供货商', '供货商名称', '供货单位', '供方', '供方名称', '厂商', '制造厂家', '供应商简称', '供应商全称', '供应方', 'supplier'];
       const CAT_COLS = ['品类', '物料品类', '物料类别', '类别', '分类', 'category'];
       const BATCH_COLS = ['批次', '批次号', '批号', 'batch', 'batchcode'];
       const WH_COLS = ['库存地点', '仓库', '库位', 'warehouse'];
@@ -1406,9 +1410,10 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         const category = cRows.length ? String(pickField(cRows[0], CAT_COLS)||'').trim() : '未知';
         const spRows = findAll(sup, matRaw);
         const supplier = (() => {
-      const s = spRows.length ? String(pickField(spRows[0], SUP_COLS)||'').trim() : (inferSupplier(sku) || '未知');
-      if(s === '未知' && sku.includes('瓶胚')) return '自制';
-      return s;
+      let s = spRows.length ? String(pickField(spRows[0], SUP_COLS)||'').trim() : '';
+      if(!s || s === '未知') s = inferSupplier(sku) || '';
+      if((!s || s === '未知') && sku.includes('瓶胚')) return '自制';
+      return s || '未知';
     })();
         const consume = findAll(cons, matRaw).reduce((s,c)=>s+num(pickField(c, CONSUME_COLS)),0);
         const bRows = findAll(batchLst, matRaw);
