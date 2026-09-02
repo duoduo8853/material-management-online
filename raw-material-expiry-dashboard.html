@@ -396,10 +396,69 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     .status-badge.status-green { background: #e8f5e9; color: #2e7d32; }
     .status-badge.status-missing { background: #f0f0f0; color: #9e9e9e; }
     .upload-hint { color: var(--text-muted); font-size: 12px; margin-bottom: 16px; }
+
+    /* ===== Tab System ===== */
+    .dashboard-tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 2px solid var(--border); }
+    .dashboard-tab { padding: 8px 20px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .2s; border-radius: 6px 6px 0 0; }
+    .dashboard-tab:hover { color: var(--text-primary); background: rgba(0,0,0,.02); }
+    .dashboard-tab.active { color: #fff; border-bottom-color: var(--status-good); background: var(--status-good); }
+    .tab01-sections, .tab04-panel { display: none; }
+    .tab01-sections.active { display: block; }
+
+    /* ===== Tab 04 Content ===== */
+    .monthly-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .metric-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .metric-toggle button { padding: 6px 16px; font-size: 13px; border: none; background: none; cursor: pointer; color: var(--text-muted); transition: all .15s; }
+    .metric-toggle button.active { background: var(--status-good); color: #fff; font-weight: 600; }
+    .monthly-trend { padding: 12px 16px; background: rgba(27,175,122,.06); border-radius: 8px; margin: 12px 0; font-size: 13px; line-height: 1.8; color: var(--text-secondary); }
+    .monthly-trend strong { color: var(--text-primary); }
+    .monthly-trend .trend-up { color: var(--status-critical); font-weight: 700; }
+    .monthly-trend .trend-down { color: var(--status-good); font-weight: 700; }
+    #chart-monthly { width: 100%; height: 420px; }
+    .monthly-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
+    .monthly-table th { padding: 7px 10px; text-align: left; background: rgba(0,0,0,.03); border-bottom: 2px solid var(--border); font-weight: 600; color: var(--text-secondary); position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+    .monthly-table td { padding: 6px 10px; border-bottom: 1px solid var(--gridline); white-space: nowrap; }
+    .monthly-table tr:hover td { background: rgba(0,0,0,.02); }
+    .monthly-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .monthly-table .center { text-align: center; }
+    .mat-code-link { color: var(--cat-blue); cursor: pointer; text-decoration: underline; font-weight: 500; }
+    .mat-code-link:hover { color: var(--status-good); }
+    .btn-usable { padding: 2px 10px; font-size: 11px; border-radius: 10px; border: 1px solid rgba(27,175,122,.3); background: rgba(27,175,122,.08); color: var(--status-good); cursor: pointer; }
+    .btn-usable:hover { background: rgba(27,175,122,.15); }
+
+    /* ===== Drill-down Modal ===== */
+    .drill-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.45); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+    .drill-dialog { background: var(--surface-card); border-radius: 12px; max-width: 92%; max-height: 85vh; width: 860px; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
+    .drill-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .drill-header h3 { margin: 0; font-size: 16px; color: var(--text-primary); }
+    .drill-header h3 span { font-size: 12px; color: var(--text-muted); margin-left: 8px; }
+    .drill-close { font-size: 22px; cursor: pointer; border: none; background: none; color: var(--text-muted); line-height: 1; padding: 0; }
+    .drill-close:hover { color: var(--status-critical); }
+    .drill-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+    .drill-summary { display: flex; gap: 24px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--gridline); }
+    .drill-summary div { display: flex; align-items: baseline; gap: 4px; }
+    .drill-summary span { font-size: 12px; color: var(--text-muted); }
+    .drill-summary strong { font-size: 18px; color: var(--text-primary); }
+    .drill-summary small { font-size: 11px; color: var(--text-muted); }
+    .drill-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .drill-table th { padding: 7px 10px; text-align: left; background: rgba(0,0,0,.03); border-bottom: 2px solid var(--border); font-weight: 600; white-space: nowrap; position: sticky; top: 0; }
+    .drill-table td { padding: 6px 10px; border-bottom: 1px solid var(--gridline); }
+    .drill-table tr:hover td { background: rgba(0,0,0,.02); }
+    .drill-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .drill-table .center { text-align: center; }
+    .profile-field { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--gridline); }
+    .profile-field label { width: 90px; font-weight: 600; color: var(--text-muted); font-size: 12px; flex-shrink: 0; }
+    .profile-field span { color: var(--text-primary); font-size: 13px; }
   </style>
 </head>
 <body>
   <div class="dashboard">
+    <nav class="dashboard-tabs">
+      <button class="dashboard-tab active" data-tab="01" onclick="switchDashboardTab('01')">01 综合看板</button>
+      <button class="dashboard-tab" data-tab="04" onclick="switchDashboardTab('04')">04 月度效期分析</button>
+    </nav>
+
+    <div id="tab01-sections" class="tab01-sections active">
     <header class="header">
       <div class="filters">
         <div class="filter-item">
@@ -506,6 +565,71 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     </section>
 
     <p class="footer-note" id="footer-note"></p>
+    </div><!-- /tab01-sections -->
+
+    <div id="tab04-panel" class="tab04-panel">
+      <div class="monthly-controls">
+        <div class="metric-toggle">
+          <button id="metric-amt" class="active" onclick="switchMonthlyMetric('amt')">按金额</button>
+          <button id="metric-qty" onclick="switchMonthlyMetric('qty')">按数量</button>
+        </div>
+        <div class="filter-item">
+          <label>品类</label>
+          <select id="monthly-cat-filter" onchange="renderMonthlyExpiry()"><option>全部</option></select>
+        </div>
+        <button class="btn btn-export" onclick="exportMonthlyDetails()">导出明细</button>
+      </div>
+
+      <div id="monthly-trend" class="monthly-trend"></div>
+      <div id="chart-monthly" class="chart-box"></div>
+
+      <div class="detail-scroll" style="max-height:360px;">
+        <table class="monthly-table">
+          <thead>
+            <tr>
+              <th>到期月份</th>
+              <th class="num">过期金额</th>
+              <th class="num">≤30天金额</th>
+              <th class="num">30-90天金额</th>
+              <th class="num">>90天金额</th>
+              <th class="num">合计</th>
+              <th class="center">明细</th>
+            </tr>
+          </thead>
+          <tbody id="monthly-table-body"></tbody>
+        </table>
+      </div>
+    </div><!-- /tab04-panel -->
+
+    <div id="drill-l1-overlay" class="drill-overlay" style="display:none;" onclick="if(event.target===this)closeDrill('l1')">
+      <div class="drill-dialog">
+        <div class="drill-header">
+          <h3 id="drill-l1-title">明细</h3>
+          <button class="drill-close" onclick="closeDrill('l1')">&times;</button>
+        </div>
+        <div class="drill-body" id="drill-l1-body"></div>
+      </div>
+    </div>
+
+    <div id="drill-l2-overlay" class="drill-overlay" style="display:none;" onclick="if(event.target===this)closeDrill('l2')">
+      <div class="drill-dialog">
+        <div class="drill-header">
+          <h3 id="drill-l2-title">物料档案</h3>
+          <button class="drill-close" onclick="closeDrill('l2')">&times;</button>
+        </div>
+        <div class="drill-body" id="drill-l2-body"></div>
+      </div>
+    </div>
+
+    <div id="drill-l3-overlay" class="drill-overlay" style="display:none;" onclick="if(event.target===this)closeDrill('l3')">
+      <div class="drill-dialog">
+        <div class="drill-header">
+          <h3 id="drill-l3-title">BOM反查 — 可耗用成品</h3>
+          <button class="drill-close" onclick="closeDrill('l3')">&times;</button>
+        </div>
+        <div class="drill-body" id="drill-l3-body"></div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -1603,6 +1727,353 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       whChart && whChart.resize(); catChart && catChart.resize(); supChart && supChart.resize();
     });
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => setTimeout(renderAll, 50));
+
+    // ===== Tab System =====
+    let monthlyChart = null;
+    let monthlyMetric = 'amt';
+    let monthlyCatFilter = '全部';
+
+    function switchDashboardTab(tab){
+      document.querySelectorAll('.dashboard-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+      const tab01 = document.getElementById('tab01-sections');
+      const tab04 = document.getElementById('tab04-panel');
+      if(tab === '04'){
+        tab01.classList.remove('active');
+        tab04.style.display = 'block';
+        populateMonthlyCatFilter();
+        renderMonthlyExpiry();
+      } else {
+        tab01.classList.add('active');
+        tab04.style.display = 'none';
+        if(monthlyChart){ monthlyChart.dispose(); monthlyChart = null; }
+      }
+    }
+
+    function populateMonthlyCatFilter(){
+      const el = document.getElementById('monthly-cat-filter');
+      const cur = el.value;
+      const cats = [...new Set(RAW.map(r => r.category))].filter(v => v && v !== '' && v != null).sort();
+      el.innerHTML = '<option>全部</option>' + cats.map(v => `<option>${escapeHtml(v)}</option>`).join('');
+      if(cats.includes(cur)) el.value = cur;
+    }
+
+    function switchMonthlyMetric(m){
+      monthlyMetric = m;
+      document.getElementById('metric-amt').classList.toggle('active', m === 'amt');
+      document.getElementById('metric-qty').classList.toggle('active', m === 'qty');
+      renderMonthlyExpiry();
+    }
+
+    function computeMonthlyExpiry(){
+      const catFilter = document.getElementById('monthly-cat-filter');
+      monthlyCatFilter = catFilter ? catFilter.value : '全部';
+      const view = getView().filter(r => {
+        if(monthlyCatFilter !== '全部' && r.category !== monthlyCatFilter) return false;
+        return true;
+      });
+      const monthly = {};
+      view.forEach(r => {
+        if(!r.expDate || r.remDays === null) return;
+        const month = String(r.expDate).substring(0, 7);
+        if(!/^\d{4}-\d{2}$/.test(month)) return;
+        if(!monthly[month]) monthly[month] = { expired: [], le30: [], le90: [], gt90: [] };
+        if(r.remDays < 0) monthly[month].expired.push(r);
+        else if(r.remDays <= 30) monthly[month].le30.push(r);
+        else if(r.remDays <= 90) monthly[month].le90.push(r);
+        else monthly[month].gt90.push(r);
+      });
+      const months = Object.keys(monthly).sort();
+      return { months, monthly };
+    }
+
+    function monthlyVal(rows){
+      if(monthlyMetric === 'amt') return rows.reduce((s, r) => s + (r.endAmt || 0), 0);
+      return rows.reduce((s, r) => s + (r.endQty || 0), 0);
+    }
+
+    const INTERVALS = [
+      { key: 'expired', label: '过期', color: () => colors().critical },
+      { key: 'le30', label: '≤30天', color: () => colors().serious },
+      { key: 'le90', label: '30-90天', color: () => colors().warning },
+      { key: 'gt90', label: '>90天', color: () => colors().good }
+    ];
+
+    function renderMonthlyExpiry(){
+      const { months, monthly } = computeMonthlyExpiry();
+      renderMonthlyChart(months, monthly);
+      renderMonthlyTrend(months, monthly);
+      renderMonthlyTable(months, monthly);
+    }
+
+    function renderMonthlyChart(months, monthly){
+      const c = colors();
+      const el = document.getElementById('chart-monthly');
+      if(!monthlyChart) monthlyChart = echarts.init(el);
+      const series = INTERVALS.map(it => ({
+        name: it.label,
+        type: 'bar',
+        stack: 'total',
+        itemStyle: { color: it.color() },
+        emphasis: { focus: 'series' },
+        data: months.map(m => Math.round(monthlyVal(monthly[m][it.key]) * 100) / 100)
+      }));
+      monthlyChart.setOption({
+        ...baseOption(),
+        tooltip: {
+          trigger: 'axis', axisPointer: { type: 'shadow' },
+          formatter: params => {
+            const m = params[0].axisValue;
+            let html = `<strong>${m}</strong><br/>`;
+            let total = 0;
+            params.forEach(p => { html += `${p.marker} ${p.seriesName}：${fmtMoney(p.value)}${monthlyMetric==='amt'?' 元':' KG'}<br/>`; total += p.value; });
+            html += `<strong>合计：${fmtMoney(Math.round(total*100)/100)}${monthlyMetric==='amt'?' 元':' KG'}</strong>`;
+            return html;
+          }
+        },
+        legend: { top: 4, textStyle: { color: c.secondary, fontSize: 12 }, icon: 'roundRect', itemWidth: 14, itemHeight: 8 },
+        grid: { left: 20, right: 32, top: 44, bottom: 36, containLabel: true },
+        xAxis: { type: 'category', data: months, axisLabel: { color: c.secondary, fontSize: 11, rotate: months.length > 8 ? 30 : 0 } },
+        yAxis: { type: 'value', name: monthlyMetric === 'amt' ? '金额(元)' : '数量(KG)', nameTextStyle: { color: c.muted, fontSize: 11 }, axisLabel: { color: c.secondary, fontSize: 11, formatter: v => monthlyMetric === 'amt' ? fmtNum(v) : fmtNum(v) }, splitLine: { lineStyle: { color: c.grid, type: 'dashed' } } },
+        series
+      }, true);
+      monthlyChart.off('click');
+      monthlyChart.on('click', params => {
+        if(params.componentType !== 'series') return;
+        const month = months[params.dataIndex];
+        if(!month) return;
+        const interval = INTERVALS[params.seriesIndex];
+        if(!interval) return;
+        showDrillL1(month, interval.label, monthly[month][interval.key]);
+      });
+    }
+
+    function renderMonthlyTrend(months, monthly){
+      const el = document.getElementById('monthly-trend');
+      if(!months.length){ el.innerHTML = '<strong>暂无到期数据</strong>'; return; }
+      const curMonth = months[months.length - 1];
+      const prevMonth = months.length > 1 ? months[months.length - 2] : null;
+      const expiredTotal = months.reduce((s, m) => s + monthlyVal(monthly[m].expired), 0);
+      const le30Total = months.reduce((s, m) => s + monthlyVal(monthly[m].le30), 0);
+      const grandTotal = months.reduce((s, m) => s + INTERVALS.reduce((ss, it) => ss + monthlyVal(monthly[m][it.key]), 0), 0);
+      const riskPct = grandTotal > 0 ? ((expiredTotal + le30Total) / grandTotal * 100).toFixed(1) : '0.0';
+      const curTotal = INTERVALS.reduce((s, it) => s + monthlyVal(monthly[curMonth][it.key]), 0);
+      let trendHtml = `<strong>趋势总结</strong>｜覆盖 <strong>${months.length}</strong> 个月份（${months[0]} ~ ${months[months.length-1]}）`;
+      trendHtml += `，合计 <strong>${fmtMoney(Math.round(grandTotal*100)/100)}</strong>${monthlyMetric==='amt'?' 元':' KG'}`;
+      trendHtml += `，其中 <span class="trend-up">过期 ${fmtMoney(Math.round(expiredTotal*100)/100)}</span> + <span class="trend-up">≤30天 ${fmtMoney(Math.round(le30Total*100)/100)}</span>`;
+      trendHtml += `，高风险占比 <strong class="trend-up">${riskPct}%</strong>`;
+      if(prevMonth){
+        const prevTotal = INTERVALS.reduce((s, it) => s + monthlyVal(monthly[prevMonth][it.key]), 0);
+        if(prevTotal > 0){
+          const change = ((curTotal - prevTotal) / prevTotal * 100).toFixed(1);
+          const cls = change > 0 ? 'trend-up' : 'trend-down';
+          const arrow = change > 0 ? '↑' : '↓';
+          trendHtml += `｜环比 <strong class="${cls}">${arrow} ${Math.abs(change)}%</strong>（${prevMonth}→${curMonth}）`;
+        }
+      }
+      el.innerHTML = trendHtml;
+    }
+
+    function renderMonthlyTable(months, monthly){
+      const tbody = document.getElementById('monthly-table-body');
+      tbody.innerHTML = months.map(m => {
+        const expired = monthlyVal(monthly[m].expired);
+        const le30 = monthlyVal(monthly[m].le30);
+        const le90 = monthlyVal(monthly[m].le90);
+        const gt90 = monthlyVal(monthly[m].gt90);
+        const total = expired + le30 + le90 + gt90;
+        return `<tr>
+          <td><strong>${m}</strong></td>
+          <td class="num">${fmtMoney(Math.round(expired*100)/100)}</td>
+          <td class="num">${fmtMoney(Math.round(le30*100)/100)}</td>
+          <td class="num">${fmtMoney(Math.round(le90*100)/100)}</td>
+          <td class="num">${fmtMoney(Math.round(gt90*100)/100)}</td>
+          <td class="num"><strong>${fmtMoney(Math.round(total*100)/100)}</strong></td>
+          <td class="center"><button class="btn-usable" onclick="showDrillL1('${m}','全部',null,'table')">查看</button></td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">无数据</td></tr>';
+    }
+
+    // ===== L1 Drill-down: month + interval detail =====
+    function showDrillL1(month, intervalLabel, rows, source){
+      let allRows = [];
+      if(source === 'table'){
+        const { monthly } = computeMonthlyExpiry();
+        const m = monthly[month];
+        if(m) allRows = [...m.expired, ...m.le30, ...m.le90, ...m.gt90];
+        intervalLabel = '全部区间';
+      } else {
+        allRows = rows || [];
+      }
+      allRows.sort((a, b) => (a.remDays || 0) - (b.remDays || 0));
+      const totalQty = allRows.reduce((s, r) => s + (r.endQty || 0), 0);
+      const totalAmt = allRows.reduce((s, r) => s + (r.endAmt || 0), 0);
+      document.getElementById('drill-l1-title').innerHTML = `${month} · ${intervalLabel}<span>${allRows.length} 条记录</span>`;
+      document.getElementById('drill-l1-body').innerHTML = `
+        <div class="drill-summary">
+          <div><span>命中记录</span><strong>${allRows.length}</strong><small>条</small></div>
+          <div><span>库存数量</span><strong>${fmtNum(totalQty)}</strong><small>KG</small></div>
+          <div><span>库存金额</span><strong>${fmtMoney(totalAmt)}</strong><small>元</small></div>
+        </div>
+        <table class="drill-table">
+          <thead><tr>
+            <th>物料编码</th><th>物料描述</th><th>批次</th><th>品类</th><th>供应商</th>
+            <th class="num">库存数量</th><th class="num">库存金额</th><th>到期日期</th>
+            <th class="center">剩余天数</th><th class="center">可耗用</th>
+          </tr></thead>
+          <tbody>
+            ${allRows.map(r => {
+              const remCls = r.remDays === null ? 'rem-missing' : (r.remDays < 0 ? 'rem-expired' : (r.remDays <= 30 ? 'rem-red' : (r.remDays <= 90 ? 'rem-yellow' : 'rem-green')));
+              return `<tr>
+                <td><span class="mat-code-link" onclick="showDrillL2('${escapeAttr(r.mat)}')">${escapeHtml(r.mat)}</span></td>
+                <td>${escapeHtml(r.sku || '—')}</td>
+                <td>${escapeHtml(r.batch || '—')}</td>
+                <td>${escapeHtml(r.category || '未知')}</td>
+                <td>${escapeHtml(r.supplier || '未知')}</td>
+                <td class="num">${fmtNum(r.endQty)}</td>
+                <td class="num">${fmtMoney(r.endAmt)}</td>
+                <td>${escapeHtml(r.expDate || '—')}</td>
+                <td class="center"><span class="rem-badge ${remCls}">${r.remDays===null?'—':r.remDays+'天'}</span></td>
+                <td class="center"><button class="btn-usable" onclick="showDrillL3('${escapeAttr(r.mat)}','${escapeAttr(r.sku||'')}')">可耗用</button></td>
+              </tr>`;
+            }).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--text-muted)">无记录</td></tr>'}
+          </tbody>
+        </table>`;
+      document.getElementById('drill-l1-overlay').style.display = 'flex';
+    }
+
+    // ===== L2 Drill-down: material profile =====
+    function showDrillL2(matCode){
+      const records = getView().filter(r => r.mat === matCode || normMat(r.mat) === normMat(matCode));
+      const r = records[0] || {};
+      const totalQty = records.reduce((s, x) => s + (x.endQty || 0), 0);
+      const totalAmt = records.reduce((s, x) => s + (x.endAmt || 0), 0);
+      const suppliers = [...new Set(records.map(x => x.supplier).filter(v => v && v !== '未知'))];
+      const batches = [...new Set(records.map(x => x.batch).filter(v => v && v !== '—'))];
+      const minRem = records.map(x => x.remDays).filter(v => v !== null).sort((a, b) => a - b)[0];
+      const bomFlavor = isCommonSupply(r.sku) ? '共用品' : getFlavorFromBom(r.mat);
+      const flavor = bomFlavor !== '—' ? bomFlavor : (r.sku && r.sku.includes('星巴克') ? '星巴克' : (r.flavor || '—'));
+      document.getElementById('drill-l2-title').innerHTML = `物料档案<span>${escapeHtml(matCode)}</span>`;
+      document.getElementById('drill-l2-body').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px;">
+          <div class="profile-field"><label>物料编码</label><span>${escapeHtml(r.mat || '—')}</span></div>
+          <div class="profile-field"><label>物料描述</label><span>${escapeHtml(r.sku || '—')}</span></div>
+          <div class="profile-field"><label>品类</label><span>${escapeHtml(r.category || '未知')}</span></div>
+          <div class="profile-field"><label>可耗用口味</label><span>${escapeHtml(flavor)}</span></div>
+          <div class="profile-field"><label>供应商</label><span>${escapeHtml(suppliers.join('、') || '—')}</span></div>
+          <div class="profile-field"><label>批次数</label><span>${batches.length} 个批次</span></div>
+          <div class="profile-field"><label>库存数量</label><span>${fmtNum(totalQty)} KG</span></div>
+          <div class="profile-field"><label>库存金额</label><span>${fmtMoney(totalAmt)} 元</span></div>
+          <div class="profile-field"><label>最近到期</label><span>${escapeHtml(r.expDate || '—')}</span></div>
+          <div class="profile-field"><label>最少剩余天数</label><span>${minRem !== undefined ? minRem + ' 天' : '—'}</span></div>
+        </div>
+        <h4 style="margin:16px 0 8px;font-size:14px;color:var(--text-primary);">批次明细</h4>
+        <table class="drill-table">
+          <thead><tr><th>批次</th><th>供应商</th><th class="num">数量</th><th class="num">金额</th><th>到期日期</th><th class="center">剩余天数</th></tr></thead>
+          <tbody>
+            ${records.sort((a, b) => (a.remDays || 0) - (b.remDays || 0)).map(x => {
+              const remCls = x.remDays === null ? 'rem-missing' : (x.remDays < 0 ? 'rem-expired' : (x.remDays <= 30 ? 'rem-red' : (x.remDays <= 90 ? 'rem-yellow' : 'rem-green')));
+              return `<tr>
+                <td>${escapeHtml(x.batch || '—')}</td>
+                <td>${escapeHtml(x.supplier || '—')}</td>
+                <td class="num">${fmtNum(x.endQty)}</td>
+                <td class="num">${fmtMoney(x.endAmt)}</td>
+                <td>${escapeHtml(x.expDate || '—')}</td>
+                <td class="center"><span class="rem-badge ${remCls}">${x.remDays===null?'—':x.remDays+'天'}</span></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>`;
+      document.getElementById('drill-l2-overlay').style.display = 'flex';
+    }
+
+    // ===== L3 Drill-down: BOM reverse lookup =====
+    function showDrillL3(matCode, sku){
+      const key = normMat(matCode);
+      const entries = (BOM_FLAVOR_MAP && BOM_FLAVOR_MAP.get(key)) || [];
+      const isCommon = isCommonSupply(sku);
+      document.getElementById('drill-l3-title').innerHTML = `BOM反查 — 可耗用成品<span>${escapeHtml(matCode)}</span>`;
+      let body = '';
+      if(isCommon){
+        body = `<div style="padding:20px;text-align:center;">
+          <p style="font-size:16px;color:var(--text-primary);font-weight:600;">共用品</p>
+          <p style="color:var(--text-muted);font-size:13px;">该物料为共用品，可用于多个成品，不限于特定口味。</p>
+        </div>`;
+      } else if(entries.length === 0){
+        body = `<div style="padding:20px;text-align:center;">
+          <p style="color:var(--text-muted);font-size:13px;">未在调配液BOM中找到该物料的关联记录。</p>
+          <p style="color:var(--text-muted);font-size:12px;">请上传含调配液sheet的BOM文件以获取反查结果。</p>
+        </div>`;
+      } else {
+        const flavors = [...new Set(entries.map(e => e.flavor))];
+        const blendNames = [...new Set(entries.map(e => e.blendingName).filter(v => v))];
+        body = `
+          <div class="drill-summary">
+            <div><span>关联口味</span><strong>${flavors.length}</strong><small>种</small></div>
+            <div><span>关联调配液</span><strong>${blendNames.length || entries.length}</strong><small>个</small></div>
+          </div>
+          <h4 style="margin:8px 0;font-size:14px;color:var(--text-primary);">可耗用口味</h4>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
+            ${flavors.map(f => `<span class="flavor-tag-item">${escapeHtml(f)}</span>`).join('')}
+          </div>
+          ${blendNames.length ? `<h4 style="margin:8px 0;font-size:14px;color:var(--text-primary);">调配液明细</h4>
+          <table class="drill-table">
+            <thead><tr><th>调配液编码</th><th>调配液名称</th><th>口味</th></tr></thead>
+            <tbody>
+              ${entries.map(e => `<tr>
+                <td>${escapeHtml(e.blendingCode || '—')}</td>
+                <td>${escapeHtml(e.blendingName || '—')}</td>
+                <td>${escapeHtml(e.flavor || '—')}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>` : ''}`;
+      }
+      document.getElementById('drill-l3-body').innerHTML = body;
+      document.getElementById('drill-l3-overlay').style.display = 'flex';
+    }
+
+    function closeDrill(level){
+      document.getElementById(`drill-l${level}-overlay`).style.display = 'none';
+    }
+
+    // ===== Export =====
+    function exportMonthlyDetails(){
+      if(typeof XLSX === 'undefined'){ alert('Excel导出组件尚未加载'); return; }
+      const { months, monthly } = computeMonthlyExpiry();
+      const rows = [];
+      months.forEach(m => {
+        INTERVALS.forEach(it => {
+          monthly[m][it.key].forEach(r => {
+            rows.push({
+              '到期月份': m,
+              '效期区间': it.label,
+              '物料编码': r.mat || '',
+              '物料描述': r.sku || '',
+              '批次': r.batch || '',
+              '品类': r.category || '',
+              '供应商': r.supplier || '',
+              '库存数量': r.endQty || 0,
+              '库存金额': Math.round((r.endAmt || 0) * 100) / 100,
+              '到期日期': r.expDate || '',
+              '剩余天数': r.remDays !== null ? r.remDays : '',
+              '效期状态': tagText[r.level] || '',
+              '建议动作': r.action || ''
+            });
+          });
+        });
+      });
+      if(!rows.length){ alert('当前条件下没有可导出的明细。'); return; }
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [{wch:10},{wch:8},{wch:18},{wch:30},{wch:15},{wch:10},{wch:20},{wch:12},{wch:14},{wch:12},{wch:10},{wch:10},{wch:14}];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '月度效期明细');
+      XLSX.writeFile(wb, `月度效期分析_${String(filters.date||BASE_DATE).replace(/-/g,'')}.xlsx`);
+    }
+
+    function escapeAttr(s){ return String(s==null?'':s).replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+    // Resize monthly chart with others
+    const _origResize = window.onresize;
+    window.addEventListener('resize', () => { monthlyChart && monthlyChart.resize(); });
 
     document.addEventListener('DOMContentLoaded', () => { bindFilters(); initCharts(); });
   </script>
