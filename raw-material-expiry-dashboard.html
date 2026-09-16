@@ -464,7 +464,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         <button class="btn" onclick="renderAll()">⟳ 刷新</button>
     </header>
 
-    <p class="upload-hint">数据来源《模版-原物料v3.xlsx》。主表=金额-数量-单价表（物料级，每行一个物料，期末数量≤0 的不显示）。批次表按物料编码关联，提供仓库(库存地点)与批次号（取最近到期批次）；SKU=金额表.物料描述；实际耗用量=耗用量（按料号聚合）；期末金额/期末数量/单价=金额表；剩余天数=批次号第4-9位(YYMMDD生产日期)+保质期(天)−计算日期。口味=调配液sheet中BOM组件料号关联的调配液名称提取。风险等级：≤0天已过期(报废处理)、0-90天(尽快使用/调拨)、&gt;90天(持续关注)。含字母E的物料编码已做双键兼容关联。</p>
+    <p class="upload-hint">数据来源《模版-原物料v3.xlsx》。主表=金额-数量-单价表（物料级，每行一个物料，期末数量≤0 的不显示）。批次表按物料编码关联，提供仓库(库存地点)与批次号（取最近到期批次）；SKU=金额表.物料描述；实际耗用量=耗用量（按料号聚合）；期末金额/期末数量/单价=金额表；剩余天数=批次号第4-9位(YYMMDD生产日期)+保质期(天)−计算日期。口味=调配液sheet中BOM组件料号关联的调配液名称提取。风险等级：≤0天已过期(报废处理)、0-90天(尽快使用/调拨)、&gt;90天(持续关注)。含字母E的物料编码已做双键兼容关联。报废预警明细页的「库存数量」单独取批次表 F+G+H（库存数量＋待检库存数量＋已冻结库存数量）合计，其余页签仍用金额表期末数量。</p>
 
     <section class="charts-row">
       <div class="card">
@@ -497,7 +497,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
     <section class="replenishment-row">
       <div class="card">
-        <div class="card-title">批次预警明细 <span class="card-sub">按剩余天数升序 · 滚动显示</span>
+        <div class="card-title">批次预警明细 <span class="card-sub">按剩余天数升序 · 滚动显示 · 库存数量＝批次表 库存数量＋待检库存数量＋已冻结库存数量</span>
           <button class="btn btn-export" onclick="exportReplenishmentDetails()" style="float:right;margin-top:-4px;">导出明细</button>
         </div>
         <div class="detail-scroll">
@@ -1046,8 +1046,35 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       });
     }
 
+    // ===== 03 报废预警专用口径 =====
+    // 库存数量取自「批次」sheet 的 F+G+H（库存数量 / 待检库存数量 / 已冻结库存数量）；
+    // 无批次表数据（例如内置示例数据）时回退到期末数量，保证不出现空白或 0。
+    function replenishQty(r){
+      if(!r) return 0;
+      const v = (r.batchQty === null || r.batchQty === undefined) ? r.endQty : r.batchQty;
+      return Number(v) || 0;
+    }
+    // 同一料号可能同时由「金额-数量-单价」与「批次」两张 sheet 产生记录，此处按料号收敛为一行
+    function replenishRows(view){
+      const groups = new Map();
+      view.forEach(r => {
+        const key = String(r.mat || r.sku || '');
+        const cur = groups.get(key);
+        if(!cur){ groups.set(key, r); return; }
+        const amt = v => Number(v && v.endAmt) || 0;
+        let pick = amt(r) > amt(cur) ? r : cur;
+        const other = pick === r ? cur : r;
+        if((pick.batchQty === null || pick.batchQty === undefined)
+          && other.batchQty !== null && other.batchQty !== undefined){
+          pick = Object.assign({}, pick, { batchQty: other.batchQty });
+        }
+        groups.set(key, pick);
+      });
+      return Array.from(groups.values());
+    }
+
     function renderDetail(view){
-      const sorted = [...view].sort((a,b)=>{
+      const sorted = [...replenishRows(view)].sort((a,b)=>{
         const ra = a.remDays, rb = b.remDays;
         if(ra === null && rb === null) return 0;
         if(ra === null) return 1;
@@ -1066,7 +1093,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         <tr>
           <td class="mat-cell"><strong>${escapeHtml(r.sku || '未标注物料')}</strong><span>${escapeHtml(r.mat)}</span></td>
           <td>${escapeHtml(r.batch || '—')}</td>
-          <td class="num">${fmtNum(r.endQty)}</td>
+          <td class="num">${fmtNum(replenishQty(r))}</td>
           <td class="num">${fmtMoney(r.endAmt)}</td>
           <td><strong>${r.expDate || '未标注'}</strong></td>
           <td class="center"><span class="rem-badge rem-${remState}">${r.remDays === null ? '—' : r.remDays + ' 天'}</span></td>
@@ -1360,6 +1387,11 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       const EXP_DATE_COLS = ['到期日期', '失效日期', '有效期至', '效期', '过期日期', 'expirydate'];
       const CONSUME_COLS = ['实际耗用量', '耗用量', '消耗量', 'consume'];
       const ENDQTY_COLS = ['期末数量', '库存数量', '当前库存', '结存数量', '期末结存'];
+      // 「批次」sheet 的三列库存：F=库存数量 / G=待检库存数量 / H=已冻结库存数量
+      // 报废预警的「库存数量」按 F+G+H 合计取值（待检、已冻结同样面临报废风险，不能漏）
+      const BATCH_STOCK_COLS = ['库存数量', '在库数量', '库存量'];
+      const BATCH_PENDING_COLS = ['待检库存数量', '待检数量', '待检库存'];
+      const BATCH_FROZEN_COLS = ['已冻结库存数量', '冻结库存数量', '已冻结数量', '冻结数量'];
       const ENDAMT_COLS = ['期末金额', '库存金额', '结存金额', '期末结存金额'];
       const BEGQTY_COLS = ['期初数量', '初始库存', '期初结存'];
       const BEGAMT_COLS = ['期初金额', '初始金额', '期初结存金额'];
@@ -1499,6 +1531,11 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
     })();
         const consume = findAll(cons, matRaw).reduce((s,c)=>s+num(pickField(c, CONSUME_COLS)),0);
         const bRows = findAll(batchLst, matRaw);
+        // 报废预警「库存数量」= 批次表该料号所有行的 F+G+H 合计（库存数量+待检库存数量+已冻结库存数量）
+        const batchQtySum = bRows.reduce((s, br) =>
+          s + num(pickField(br, BATCH_STOCK_COLS))
+            + num(pickField(br, BATCH_PENDING_COLS))
+            + num(pickField(br, BATCH_FROZEN_COLS)), 0);
         let cand = bRows.map(br => {
           const bcode = String(pickField(br, BATCH_COLS)||'').trim();
           const wh = String(pickField(br, WH_COLS)||'').trim() || '未知';
@@ -1522,6 +1559,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         const fEntries = flavorMap.get(normMat(matRaw)) || [];
         const flavor = fEntries.length ? [...new Set(fEntries.map(f => f.flavor))].join('、') : (sku.includes('星巴克') ? '星巴克' : '—');
         out.push({ wh:rep.wh, mat:m, sku, flavor, batch:rep.batch, stock:Math.round(endQty*1000)/1000,
+          batchQty: batchQtySum > 0 ? Math.round(batchQtySum*1000)/1000 : null,
           consume:Math.round(consume*100)/100, endQty:Math.round(endQty*1000)/1000, endAmt:Math.round(endAmt*100)/100,
           begQty:Math.round(begQty*1000)/1000, begAmt:Math.round(begAmt*100)/100, price:Math.round(price*100)/100,
           shelfLife:Math.round(shelfLife*10)/10,
@@ -1897,7 +1935,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
     }
 
     function exportReplenishmentDetails(){
-      const view = getView();
+      const view = replenishRows(getView());
       const sorted = [...view].sort((a,b)=>{
         const ra = a.remDays, rb = b.remDays;
         if(ra === null && rb === null) return 0;
@@ -1935,7 +1973,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         const ac = actionColors[action] || {bg:altBg, fg:'#15252d'};
         const vals = [
           r.mat || '', r.sku || '', r.batch || '', r.category || '', r.supplier || '',
-          (r.endQty || 0).toLocaleString('zh-CN'),
+          replenishQty(r).toLocaleString('zh-CN', { maximumFractionDigits: 2 }),
           Math.round((r.endAmt || 0) * 100) / 100,
           r.expDate || '', r.remDays !== null ? r.remDays : '',
           status, action, flavor
