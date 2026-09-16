@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -397,68 +397,34 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     .status-badge.status-missing { background: #f0f0f0; color: #9e9e9e; }
     .upload-hint { color: var(--text-muted); font-size: 12px; margin-bottom: 16px; }
 
-    /* ===== Tab System ===== */
-    .dashboard-tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 2px solid var(--border); }
-    .dashboard-tab { padding: 8px 20px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .2s; border-radius: 6px 6px 0 0; }
-    .dashboard-tab:hover { color: var(--text-primary); background: rgba(0,0,0,.02); }
-    .dashboard-tab.active { color: #fff; border-bottom-color: var(--status-good); background: var(--status-good); }
-    .tab01-sections, .tab04-panel { display: none; }
-    .tab01-sections.active { display: block; }
-
-    /* ===== Tab 04 Content ===== */
-    .monthly-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    /* ===== Tab 04 ===== */
+    .tab04-panel { display: flex; flex-direction: column; gap: var(--gap); }
+    .monthly-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .monthly-controls .filter-item { flex-direction: row; align-items: center; gap: 6px; }
+    .monthly-controls .filter-item label { font-size: 13px; }
+    .monthly-controls .filter-item select { padding: 6px 10px; font-size: 13px; }
+    .monthly-controls .btn-export { padding: 6px 16px; font-size: 13px; }
     .metric-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
     .metric-toggle button { padding: 6px 16px; font-size: 13px; border: none; background: none; cursor: pointer; color: var(--text-muted); transition: all .15s; }
     .metric-toggle button.active { background: var(--status-good); color: #fff; font-weight: 600; }
-    .monthly-trend { padding: 12px 16px; background: rgba(27,175,122,.06); border-radius: 8px; margin: 12px 0; font-size: 13px; line-height: 1.8; color: var(--text-secondary); }
+    .monthly-trend { padding: 12px 16px; background: rgba(27,175,122,.06); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; line-height: 1.8; color: var(--text-secondary); }
     .monthly-trend strong { color: var(--text-primary); }
     .monthly-trend .trend-up { color: var(--status-critical); font-weight: 700; }
     .monthly-trend .trend-down { color: var(--status-good); font-weight: 700; }
     #chart-monthly { width: 100%; height: 420px; }
-    .monthly-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
-    .monthly-table th { padding: 7px 10px; text-align: left; background: rgba(0,0,0,.03); border-bottom: 2px solid var(--border); font-weight: 600; color: var(--text-secondary); position: sticky; top: 0; z-index: 1; white-space: nowrap; }
-    .monthly-table td { padding: 6px 10px; border-bottom: 1px solid var(--gridline); white-space: nowrap; }
-    .monthly-table tr:hover td { background: rgba(0,0,0,.02); }
+    .monthly-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    .monthly-table th, .monthly-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid rgba(22,79,74,0.08); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .monthly-table th { color: #164f4a; font-weight: 600; background: #f4f8f7; position: sticky; top: 0; z-index: 1; border-bottom: 2px solid rgba(22,79,74,0.16); }
+    .monthly-table tr:hover td { background: rgba(244,248,247,0.6); }
+    .monthly-table td { color: #15252d; }
     .monthly-table .num { text-align: right; font-variant-numeric: tabular-nums; }
     .monthly-table .center { text-align: center; }
     .mat-code-link { color: var(--cat-blue); cursor: pointer; text-decoration: underline; font-weight: 500; }
     .mat-code-link:hover { color: var(--status-good); }
-    .btn-usable { padding: 2px 10px; font-size: 11px; border-radius: 10px; border: 1px solid rgba(27,175,122,.3); background: rgba(27,175,122,.08); color: var(--status-good); cursor: pointer; }
-    .btn-usable:hover { background: rgba(27,175,122,.15); }
-
-    /* ===== Drill-down Modal ===== */
-    .drill-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.45); z-index: 1000; display: flex; align-items: center; justify-content: center; }
-    .drill-dialog { background: var(--surface-card); border-radius: 12px; max-width: 92%; max-height: 85vh; width: 860px; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
-    .drill-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-    .drill-header h3 { margin: 0; font-size: 16px; color: var(--text-primary); }
-    .drill-header h3 span { font-size: 12px; color: var(--text-muted); margin-left: 8px; }
-    .drill-close { font-size: 22px; cursor: pointer; border: none; background: none; color: var(--text-muted); line-height: 1; padding: 0; }
-    .drill-close:hover { color: var(--status-critical); }
-    .drill-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
-    .drill-summary { display: flex; gap: 24px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--gridline); }
-    .drill-summary div { display: flex; align-items: baseline; gap: 4px; }
-    .drill-summary span { font-size: 12px; color: var(--text-muted); }
-    .drill-summary strong { font-size: 18px; color: var(--text-primary); }
-    .drill-summary small { font-size: 11px; color: var(--text-muted); }
-    .drill-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .drill-table th { padding: 7px 10px; text-align: left; background: rgba(0,0,0,.03); border-bottom: 2px solid var(--border); font-weight: 600; white-space: nowrap; position: sticky; top: 0; }
-    .drill-table td { padding: 6px 10px; border-bottom: 1px solid var(--gridline); }
-    .drill-table tr:hover td { background: rgba(0,0,0,.02); }
-    .drill-table .num { text-align: right; font-variant-numeric: tabular-nums; }
-    .drill-table .center { text-align: center; }
-    .profile-field { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--gridline); }
-    .profile-field label { width: 90px; font-weight: 600; color: var(--text-muted); font-size: 12px; flex-shrink: 0; }
-    .profile-field span { color: var(--text-primary); font-size: 13px; }
   </style>
 </head>
 <body>
   <div class="dashboard">
-    <nav class="dashboard-tabs">
-      <button class="dashboard-tab active" data-tab="01" onclick="switchDashboardTab('01')">01 综合看板</button>
-      <button class="dashboard-tab" data-tab="04" onclick="switchDashboardTab('04')">04 月度效期分析</button>
-    </nav>
-
-    <div id="tab01-sections" class="tab01-sections active">
     <header class="header">
       <div class="filters">
         <div class="filter-item">
@@ -531,7 +497,9 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
     <section class="replenishment-row">
       <div class="card">
-        <div class="card-title">批次预警明细 <span class="card-sub">按剩余天数升序 · 滚动显示</span></div>
+        <div class="card-title">批次预警明细 <span class="card-sub">按剩余天数升序 · 滚动显示</span>
+          <button class="btn btn-export" onclick="exportReplenishmentDetails()" style="float:right;margin-top:-4px;">导出明细</button>
+        </div>
         <div class="detail-scroll">
           <table class="data-table">
             <thead>
@@ -565,7 +533,6 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     </section>
 
     <p class="footer-note" id="footer-note"></p>
-    </div><!-- /tab01-sections -->
 
     <div id="tab04-panel" class="tab04-panel">
       <div class="monthly-controls">
@@ -581,55 +548,17 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       </div>
 
       <div id="monthly-trend" class="monthly-trend"></div>
-      <div id="chart-monthly" class="chart-box"></div>
 
-      <div class="detail-scroll" style="max-height:360px;">
-        <table class="monthly-table">
-          <thead>
-            <tr>
-              <th>到期月份</th>
-              <th class="num">过期金额</th>
-              <th class="num">≤30天金额</th>
-              <th class="num">30-90天金额</th>
-              <th class="num">>90天金额</th>
-              <th class="num">合计</th>
-              <th class="center">明细</th>
-            </tr>
-          </thead>
-          <tbody id="monthly-table-body"></tbody>
-        </table>
+      <div class="card">
+        <div class="card-title">月度效期堆叠分布 <span class="card-sub">各月末全量库存效期风险分布 · 金额/数量切换</span></div>
+        <div id="chart-monthly" class="chart-box"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">月度效期热力图 <span class="card-sub">各月末效期风险分布 · 颜色越深风险越高</span></div>
+        <div id="chart-monthly-heatmap" class="chart-box" style="height:320px;"></div>
       </div>
     </div><!-- /tab04-panel -->
-
-    <div id="drill-l1-overlay" class="drill-overlay" style="display:none;" onclick="if(event.target===this)closeDrill('l1')">
-      <div class="drill-dialog">
-        <div class="drill-header">
-          <h3 id="drill-l1-title">明细</h3>
-          <button class="drill-close" onclick="closeDrill('l1')">&times;</button>
-        </div>
-        <div class="drill-body" id="drill-l1-body"></div>
-      </div>
-    </div>
-
-    <div id="drill-l2-overlay" class="drill-overlay" style="display:none;" onclick="if(event.target===this)closeDrill('l2')">
-      <div class="drill-dialog">
-        <div class="drill-header">
-          <h3 id="drill-l2-title">物料档案</h3>
-          <button class="drill-close" onclick="closeDrill('l2')">&times;</button>
-        </div>
-        <div class="drill-body" id="drill-l2-body"></div>
-      </div>
-    </div>
-
-    <div id="drill-l3-overlay" class="drill-overlay" style="display:none;" onclick="if(event.target===this)closeDrill('l3')">
-      <div class="drill-dialog">
-        <div class="drill-header">
-          <h3 id="drill-l3-title">BOM反查 — 可耗用成品</h3>
-          <button class="drill-close" onclick="closeDrill('l3')">&times;</button>
-        </div>
-        <div class="drill-body" id="drill-l3-body"></div>
-      </div>
-    </div>
   </div>
 
   <script>
@@ -1363,6 +1292,12 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       if(!entries.length) return '—';
       return [...new Set(entries.map(e => e.flavor))].join('、');
     }
+    function getRecordFlavor(mat, sku){
+      const bomFlavor = isCommonSupply(sku) ? '共用品' : getFlavorFromBom(mat);
+      if(bomFlavor !== '—') return bomFlavor;
+      if(sku && sku.includes('星巴克')) return '星巴克';
+      return '—';
+    }
 
     // ===== 上传重新计算 =====
     function buildRecordsFromWorkbook(wb){
@@ -1728,32 +1663,25 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
     });
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => setTimeout(renderAll, 50));
 
-    // ===== Tab System =====
+    // ===== Tab 04: Monthly Expiry Analysis =====
     let monthlyChart = null;
+    let monthlyHeatmapChart = null;
     let monthlyMetric = 'amt';
-    let monthlyCatFilter = '全部';
 
-    function switchDashboardTab(tab){
-      document.querySelectorAll('.dashboard-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-      const tab01 = document.getElementById('tab01-sections');
-      const tab04 = document.getElementById('tab04-panel');
-      if(tab === '04'){
-        tab01.classList.remove('active');
-        tab04.style.display = 'block';
-        populateMonthlyCatFilter();
-        renderMonthlyExpiry();
-      } else {
-        tab01.classList.add('active');
-        tab04.style.display = 'none';
-        if(monthlyChart){ monthlyChart.dispose(); monthlyChart = null; }
-      }
-    }
+    const INTERVALS = [
+      { key: 'expired', label: '过期', color: '#c0392b' },
+      { key: 'le30', label: '\u226430\u5929', color: '#e67e22' },
+      { key: 'le90', label: '30-90\u5929', color: '#f1c40f' },
+      { key: 'gt90', label: '>90\u5929', color: '#27ae60' }
+    ];
+
+    function escapeAttr(s){ return String(s==null?'':s).replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
 
     function populateMonthlyCatFilter(){
       const el = document.getElementById('monthly-cat-filter');
       const cur = el.value;
       const cats = [...new Set(RAW.map(r => r.category))].filter(v => v && v !== '' && v != null).sort();
-      el.innerHTML = '<option>全部</option>' + cats.map(v => `<option>${escapeHtml(v)}</option>`).join('');
+      el.innerHTML = '<option>\u5168\u90e8</option>' + cats.map(v => `<option>${escapeHtml(v)}</option>`).join('');
       if(cats.includes(cur)) el.value = cur;
     }
 
@@ -1765,315 +1693,314 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
     }
 
     function computeMonthlyExpiry(){
-      const catFilter = document.getElementById('monthly-cat-filter');
-      monthlyCatFilter = catFilter ? catFilter.value : '全部';
-      const view = getView().filter(r => {
-        if(monthlyCatFilter !== '全部' && r.category !== monthlyCatFilter) return false;
-        return true;
+      const catEl = document.getElementById('monthly-cat-filter');
+      const catFilter = catEl ? catEl.value : '\u5168\u90e8';
+      const view = getView().filter(r => r.expDate && r.remDays !== null);
+      const filtered = view.filter(r => catFilter === '\u5168\u90e8' || r.category === catFilter);
+
+      // Collect month range from expiry dates
+      let minMonth = null, maxMonth = null;
+      filtered.forEach(r => {
+        const m = String(r.expDate).substring(0, 7);
+        if (!minMonth || m < minMonth) minMonth = m;
+        if (!maxMonth || m > maxMonth) maxMonth = m;
       });
+      if (!minMonth || !maxMonth) return { months: [], monthly: {} };
+
+      // Generate continuous month range, limit to last 12 months
+      const allMonths = [];
+      let [cy, cm] = minMonth.split('-').map(Number);
+      const [mxY, mxM] = maxMonth.split('-').map(Number);
+      while (cy < mxY || (cy === mxY && cm <= mxM)) {
+        allMonths.push(`${cy}-${String(cm).padStart(2, '0')}`);
+        cm++; if (cm > 12) { cm = 1; cy++; }
+      }
+      const months = allMonths.slice(0, 12);
+
+      // For each month, classify ALL items by risk status as of that month's end
       const monthly = {};
-      view.forEach(r => {
-        if(!r.expDate || r.remDays === null) return;
-        const month = String(r.expDate).substring(0, 7);
-        if(!/^\d{4}-\d{2}$/.test(month)) return;
-        if(!monthly[month]) monthly[month] = { expired: [], le30: [], le90: [], gt90: [] };
-        if(r.remDays < 0) monthly[month].expired.push(r);
-        else if(r.remDays <= 30) monthly[month].le30.push(r);
-        else if(r.remDays <= 90) monthly[month].le90.push(r);
-        else monthly[month].gt90.push(r);
+      months.forEach(m => {
+        const [yr, mo] = m.split('-').map(Number);
+        const asOfDate = new Date(yr, mo, 0); // last day of month
+        const asOfTime = asOfDate.getTime();
+
+        monthly[m] = { expired: [], le30: [], le90: [], gt90: [] };
+        filtered.forEach(r => {
+          const [ey, em, ed] = String(r.expDate).split('-').map(Number);
+          const expTime = new Date(ey, em - 1, ed).getTime();
+          const diffDays = Math.round((expTime - asOfTime) / 86400000);
+
+          if (diffDays <= 0) monthly[m].expired.push(r);
+          else if (diffDays <= 30) monthly[m].le30.push(r);
+          else if (diffDays <= 90) monthly[m].le90.push(r);
+          else monthly[m].gt90.push(r);
+        });
       });
-      const months = Object.keys(monthly).sort();
       return { months, monthly };
     }
 
-    function monthlyVal(rows){
-      if(monthlyMetric === 'amt') return rows.reduce((s, r) => s + (r.endAmt || 0), 0);
-      return rows.reduce((s, r) => s + (r.endQty || 0), 0);
-    }
-
-    const INTERVALS = [
-      { key: 'expired', label: '过期', color: () => colors().critical },
-      { key: 'le30', label: '≤30天', color: () => colors().serious },
-      { key: 'le90', label: '30-90天', color: () => colors().warning },
-      { key: 'gt90', label: '>90天', color: () => colors().good }
-    ];
-
     function renderMonthlyExpiry(){
-      const { months, monthly } = computeMonthlyExpiry();
-      renderMonthlyChart(months, monthly);
-      renderMonthlyTrend(months, monthly);
-      renderMonthlyTable(months, monthly);
-    }
-
-    function renderMonthlyChart(months, monthly){
       const c = colors();
-      const el = document.getElementById('chart-monthly');
-      if(!monthlyChart) monthlyChart = echarts.init(el);
-      const series = INTERVALS.map(it => ({
+      const { months, monthly } = computeMonthlyExpiry();
+
+      if(!monthlyChart){
+        monthlyChart = echarts.init(document.getElementById('chart-monthly'));
+      }
+
+      const series = INTERVALS.filter(it => it.key !== 'gt90').map(it => ({
         name: it.label,
         type: 'bar',
         stack: 'total',
-        itemStyle: { color: it.color() },
+        barWidth: 24,
+        itemStyle: { color: it.color, borderRadius:[4,4,0,0] },
         emphasis: { focus: 'series' },
-        data: months.map(m => Math.round(monthlyVal(monthly[m][it.key]) * 100) / 100)
+        data: months.map(m => {
+          const records = monthly[m][it.key];
+          return monthlyMetric === 'amt'
+            ? Math.round(records.reduce((s, r) => s + (r.endAmt || 0), 0) * 100) / 100
+            : Math.round(records.reduce((s, r) => s + (r.endQty || 0), 0) * 100) / 100;
+        })
       }));
+
       monthlyChart.setOption({
-        ...baseOption(),
         tooltip: {
-          trigger: 'axis', axisPointer: { type: 'shadow' },
-          formatter: params => {
-            const m = params[0].axisValue;
-            let html = `<strong>${m}</strong><br/>`;
+          trigger: 'axis',
+          axisPointer: { type: 'shadow' },
+          backgroundColor: cssVar('--surface-card'),
+          borderColor: cssVar('--border'),
+          borderWidth: 1,
+          padding: [10, 12],
+          textStyle: { color: c.primary, fontSize: 12 },
+          extraCssText: 'box-shadow:0 10px 28px rgba(21,37,45,.12);border-radius:8px;',
+          formatter: function(params){
+            let html = `<div style="font-weight:700;color:${c.primary}">${params[0].axisValue}</div>`;
             let total = 0;
-            params.forEach(p => { html += `${p.marker} ${p.seriesName}：${fmtMoney(p.value)}${monthlyMetric==='amt'?' 元':' KG'}<br/>`; total += p.value; });
-            html += `<strong>合计：${fmtMoney(Math.round(total*100)/100)}${monthlyMetric==='amt'?' 元':' KG'}</strong>`;
+            params.forEach(p => {
+              html += `<div style="display:flex;align-items:center;justify-content:space-between;gap:22px;margin-top:7px"><span style="display:flex;align-items:center;gap:7px;color:${c.secondary}"><i style="width:8px;height:8px;border-radius:50%;background:${p.color};display:inline-block"></i>${p.seriesName}</span><strong style="font-variant-numeric:tabular-nums">${(monthlyMetric === 'amt' ? '\u00a5' : '')}${Number(p.value).toLocaleString()}</strong></div>`;
+              total += p.value;
+            });
+            html += `<div style="display:flex;align-items:center;justify-content:space-between;gap:22px;margin-top:7px;border-top:1px solid ${c.grid};padding-top:7px"><span style="color:${c.secondary}">\u5408\u8ba1</span><strong style="font-variant-numeric:tabular-nums">${(monthlyMetric === 'amt' ? '\u00a5' : '')}${Math.round(total).toLocaleString()}</strong></div>`;
             return html;
           }
         },
-        legend: { top: 4, textStyle: { color: c.secondary, fontSize: 12 }, icon: 'roundRect', itemWidth: 14, itemHeight: 8 },
-        grid: { left: 20, right: 32, top: 44, bottom: 36, containLabel: true },
-        xAxis: { type: 'category', data: months, axisLabel: { color: c.secondary, fontSize: 11, rotate: months.length > 8 ? 30 : 0 } },
-        yAxis: { type: 'value', name: monthlyMetric === 'amt' ? '金额(元)' : '数量(KG)', nameTextStyle: { color: c.muted, fontSize: 11 }, axisLabel: { color: c.secondary, fontSize: 11, formatter: v => monthlyMetric === 'amt' ? fmtNum(v) : fmtNum(v) }, splitLine: { lineStyle: { color: c.grid, type: 'dashed' } } },
-        series
+        legend: { data: INTERVALS.map(it => it.label), bottom: 8, icon: 'circle', itemWidth: 10, itemHeight: 10, textStyle: { color: c.secondary, fontSize: 12 } },
+        grid: { left: 16, right: 24, top: 30, bottom: 40, containLabel: true },
+        xAxis: { type: 'category', data: months, axisLine: { lineStyle: { color: c.grid } }, axisLabel: { color: c.secondary, fontSize: 11, rotate: 30 } },
+        yAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: c.grid } }, axisLabel: { color: c.muted, fontSize: 12 } },
+        series: series
       }, true);
-      monthlyChart.off('click');
-      monthlyChart.on('click', params => {
-        if(params.componentType !== 'series') return;
-        const month = months[params.dataIndex];
-        if(!month) return;
-        const interval = INTERVALS[params.seriesIndex];
-        if(!interval) return;
-        showDrillL1(month, interval.label, monthly[month][interval.key]);
-      });
-    }
 
-    function renderMonthlyTrend(months, monthly){
-      const el = document.getElementById('monthly-trend');
-      if(!months.length){ el.innerHTML = '<strong>暂无到期数据</strong>'; return; }
-      const curMonth = months[months.length - 1];
-      const prevMonth = months.length > 1 ? months[months.length - 2] : null;
-      const expiredTotal = months.reduce((s, m) => s + monthlyVal(monthly[m].expired), 0);
-      const le30Total = months.reduce((s, m) => s + monthlyVal(monthly[m].le30), 0);
-      const grandTotal = months.reduce((s, m) => s + INTERVALS.reduce((ss, it) => ss + monthlyVal(monthly[m][it.key]), 0), 0);
-      const riskPct = grandTotal > 0 ? ((expiredTotal + le30Total) / grandTotal * 100).toFixed(1) : '0.0';
-      const curTotal = INTERVALS.reduce((s, it) => s + monthlyVal(monthly[curMonth][it.key]), 0);
-      let trendHtml = `<strong>趋势总结</strong>｜覆盖 <strong>${months.length}</strong> 个月份（${months[0]} ~ ${months[months.length-1]}）`;
-      trendHtml += `，合计 <strong>${fmtMoney(Math.round(grandTotal*100)/100)}</strong>${monthlyMetric==='amt'?' 元':' KG'}`;
-      trendHtml += `，其中 <span class="trend-up">过期 ${fmtMoney(Math.round(expiredTotal*100)/100)}</span> + <span class="trend-up">≤30天 ${fmtMoney(Math.round(le30Total*100)/100)}</span>`;
-      trendHtml += `，高风险占比 <strong class="trend-up">${riskPct}%</strong>`;
-      if(prevMonth){
-        const prevTotal = INTERVALS.reduce((s, it) => s + monthlyVal(monthly[prevMonth][it.key]), 0);
-        if(prevTotal > 0){
-          const change = ((curTotal - prevTotal) / prevTotal * 100).toFixed(1);
+      // Render heatmap
+      const heatmapEl = document.getElementById('chart-monthly-heatmap');
+      if(!monthlyHeatmapChart){
+        monthlyHeatmapChart = echarts.init(heatmapEl);
+      }
+      const intervalLabels = INTERVALS.map(it => it.label);
+      const intervalColors = INTERVALS.map(it => it.color);
+      const fmtVal = v => monthlyMetric === 'amt'
+        ? '\u00a5' + Math.round(v).toLocaleString()
+        : Math.round(v).toLocaleString() + ' KG';
+      if (months.length === 0) {
+        monthlyHeatmapChart.setOption({
+          title: { text: '暂无有效到期日期数据', left: 'center', top: 'center', textStyle: { color: c.muted, fontSize: 13 } }
+        }, true);
+      } else {
+        const heatData = [];
+        let maxVal = 0;
+        months.forEach((m, mi) => {
+          INTERVALS.forEach((it, ii) => {
+            const records = monthly[m][it.key];
+            const val = monthlyMetric === 'amt'
+              ? records.reduce((s, r) => s + (r.endAmt || 0), 0)
+              : records.reduce((s, r) => s + (r.endQty || 0), 0);
+            heatData.push([mi, ii, val]);
+            if (val > maxVal) maxVal = val;
+          });
+        });
+        monthlyHeatmapChart.setOption({
+          tooltip: {
+            position: 'top',
+            backgroundColor: cssVar('--surface-card'),
+            borderColor: cssVar('--border'),
+            borderWidth: 1,
+            padding: [10, 12],
+            textStyle: { color: c.primary, fontSize: 12 },
+            extraCssText: 'box-shadow:0 10px 28px rgba(21,37,45,.12);border-radius:8px;',
+            formatter: function(params){
+              const m = months[params.value[0]];
+              const interval = intervalLabels[params.value[1]];
+              return `<div style="font-weight:700;color:${c.primary}">${m} · ${interval}</div>` +
+                     `<div style="margin-top:6px;color:${c.secondary}">${fmtVal(params.value[2])}</div>`;
+            }
+          },
+          grid: { left: 16, right: 24, top: 20, bottom: 30, containLabel: true },
+          xAxis: {
+            type: 'category',
+            data: months,
+            axisLine: { lineStyle: { color: c.grid } },
+            axisLabel: { color: c.secondary, fontSize: 11, rotate: 30 },
+            splitArea: { show: true, areaStyle: { color: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.02)'] } }
+          },
+          yAxis: {
+            type: 'category',
+            data: intervalLabels,
+            axisLine: { lineStyle: { color: c.grid } },
+            axisLabel: { color: c.secondary, fontSize: 12 },
+            splitArea: { show: true, areaStyle: { color: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.02)'] } }
+          },
+          visualMap: {
+            min: 0,
+            max: maxVal || 1,
+            calculable: true,
+            orient: 'horizontal',
+            left: 'center',
+            bottom: 0,
+            itemWidth: 12,
+            itemHeight: 80,
+            textStyle: { color: c.muted, fontSize: 11 },
+            inRange: { color: ['#fff9c4', '#ffcc80', '#ff8a65', '#f4511e', '#c0392b'] }
+          },
+          series: [{
+            type: 'heatmap',
+            data: heatData,
+            label: { show: true, color: '#15252d', fontSize: 11, formatter: function(p){ const v = p.value[2]; return v > 0 ? (monthlyMetric === 'amt' ? Math.round(v/10000) + '万' : Math.round(v)) : ''; } },
+            emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.3)' } },
+            itemStyle: { borderColor: '#fff', borderWidth: 2 }
+          }]
+        }, true);
+      }
+
+      // Trend summary
+      const trendEl = document.getElementById('monthly-trend');
+      if (months.length === 0) {
+        trendEl.innerHTML = '\u6682\u65e0\u6709\u6548\u5230\u671f\u65e5\u671f\u6570\u636e\uff0c\u65e0\u6cd5\u751f\u6210\u6708\u5ea6\u6548\u671f\u5206\u6790\u3002';
+      } else {
+        const sumAmt = arr => arr.reduce((s, r) => s + (r.endAmt || 0), 0);
+        const lastM = months[months.length - 1];
+        const lastTotal = INTERVALS.reduce((s, it) => s + sumAmt(monthly[lastM][it.key]), 0);
+        const lastExpired = sumAmt(monthly[lastM].expired);
+        const lastLe30 = sumAmt(monthly[lastM].le30);
+        const riskPct = lastTotal > 0 ? ((lastExpired + lastLe30) / lastTotal * 100).toFixed(1) : '0.0';
+
+        let trendText = '';
+        if (months.length >= 2) {
+          const firstM = months[0];
+          const firstTotal = INTERVALS.reduce((s, it) => s + sumAmt(monthly[firstM][it.key]), 0);
+          const firstRisk = firstTotal > 0 ? (sumAmt(monthly[firstM].expired) + sumAmt(monthly[firstM].le30)) / firstTotal * 100 : 0;
+          const lastRisk = parseFloat(riskPct);
+          const change = (lastRisk - firstRisk).toFixed(1);
           const cls = change > 0 ? 'trend-up' : 'trend-down';
-          const arrow = change > 0 ? '↑' : '↓';
-          trendHtml += `｜环比 <strong class="${cls}">${arrow} ${Math.abs(change)}%</strong>（${prevMonth}→${curMonth}）`;
+          trendText = `\uff5c\u98ce\u9669\u8d8b\u52bf ${change > 0 ? '\u2191' : '\u2193'} <span class="${cls}">${Math.abs(change)}%</span>`;
         }
+        trendEl.innerHTML = `\u8986\u76d6 <strong>${months.length}</strong> \u4e2a\u6708\u4efd\uff08${months[0]} ~ ${months[months.length-1]}\uff09\uff5c\u6708\u672b\u9ad8\u98ce\u9669\u5360\u6bd4 <span class="trend-up">${riskPct}%</span>\uff08\u8fc7\u671f \u00a5${Math.round(lastExpired).toLocaleString()} + \u226430\u5929 \u00a5${Math.round(lastLe30).toLocaleString()}\uff09${trendText}`;
       }
-      el.innerHTML = trendHtml;
     }
 
-    function renderMonthlyTable(months, monthly){
-      const tbody = document.getElementById('monthly-table-body');
-      tbody.innerHTML = months.map(m => {
-        const expired = monthlyVal(monthly[m].expired);
-        const le30 = monthlyVal(monthly[m].le30);
-        const le90 = monthlyVal(monthly[m].le90);
-        const gt90 = monthlyVal(monthly[m].gt90);
-        const total = expired + le30 + le90 + gt90;
-        return `<tr>
-          <td><strong>${m}</strong></td>
-          <td class="num">${fmtMoney(Math.round(expired*100)/100)}</td>
-          <td class="num">${fmtMoney(Math.round(le30*100)/100)}</td>
-          <td class="num">${fmtMoney(Math.round(le90*100)/100)}</td>
-          <td class="num">${fmtMoney(Math.round(gt90*100)/100)}</td>
-          <td class="num"><strong>${fmtMoney(Math.round(total*100)/100)}</strong></td>
-          <td class="center"><button class="btn-usable" onclick="showDrillL1('${m}','全部',null,'table')">查看</button></td>
-        </tr>`;
-      }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">无数据</td></tr>';
+    function exportReplenishmentDetails(){
+      const view = getView();
+      const sorted = [...view].sort((a,b)=>{
+        const ra = a.remDays, rb = b.remDays;
+        if(ra === null && rb === null) return 0;
+        if(ra === null) return 1;
+        if(rb === null) return -1;
+        return ra - rb;
+      });
+      if(!sorted.length){ alert('当前条件下没有可导出的明细。'); return; }
+      const headers = ['物料编码','物料描述','批次','品类','供应商','库存数量','库存金额','到期日期','剩余天数','效期状态','建议动作','可耗用口味'];
+      const statusColors = {
+        '已过期':   {bg:'#c0392b', fg:'#ffffff'},
+        '≤30天':    {bg:'#e65100', fg:'#ffffff'},
+        '30-90天':  {bg:'#f9a825', fg:'#15252d'},
+        '>90天':    {bg:'#27ae60', fg:'#ffffff'},
+        '无保质期': {bg:'#90a4ae', fg:'#ffffff'}
+      };
+      const actionColors = {
+        '报废处理':       {bg:'#c0392b', fg:'#ffffff'},
+        '尽快使用/调拨': {bg:'#e65100', fg:'#ffffff'},
+        '持续关注':       {bg:'#27ae60', fg:'#ffffff'},
+        '不参与风险统计': {bg:'#90a4ae', fg:'#ffffff'}
+      };
+      let html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>批次预警明细</x:Name><x:WorksheetOptions><x:FreezePanes><x:FrozenNoSelection/><x:SplitHorizontal>1</x:SplitHorizontal><x:TopRowBottom>1</x:TopRowBottom><x:ActivePane>BottomPane</x:ActivePane></x:FreezePanes></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body>';
+      html += '<table border="1" style="border-collapse:collapse;font-family:Microsoft YaHei,sans-serif;font-size:11px;">';
+      html += '<tr style="background:#164f4a;color:#ffffff;font-weight:bold;text-align:center;height:28px;">';
+      headers.forEach(h => { html += `<th style="padding:6px 10px;border:1px solid #0d3a35;white-space:nowrap;">${h}</th>`; });
+      html += '</tr>';
+      sorted.forEach((r, idx) => {
+        const altBg = idx % 2 === 0 ? '#ffffff' : '#f4f8f7';
+        const status = r.remDays === null ? '无保质期' : (r.remDays < 0 ? '已过期' : (r.remDays <= 30 ? '≤30天' : (r.remDays <= 90 ? '30-90天' : '>90天')));
+        const action = r.remDays === null ? '不参与风险统计' : (r.remDays < 0 ? '报废处理' : (r.remDays <= 90 ? '尽快使用/调拨' : '持续关注'));
+        const bomFlavor = isCommonSupply(r.sku) ? '共用品' : getFlavorFromBom(r.mat);
+        const flavor = bomFlavor !== '—' ? bomFlavor : (r.sku && r.sku.indexOf('星巴克') >= 0 ? '星巴克' : '—');
+        const sc = statusColors[status] || {bg:altBg, fg:'#15252d'};
+        const ac = actionColors[action] || {bg:altBg, fg:'#15252d'};
+        const vals = [
+          r.mat || '', r.sku || '', r.batch || '', r.category || '', r.supplier || '',
+          (r.endQty || 0).toLocaleString('zh-CN'),
+          Math.round((r.endAmt || 0) * 100) / 100,
+          r.expDate || '', r.remDays !== null ? r.remDays : '',
+          status, action, flavor
+        ];
+        html += `<tr style="background:${altBg};">`;
+        vals.forEach((v, i) => {
+          let style = `padding:5px 10px;border:1px solid #e0e0e0;white-space:nowrap;`;
+          if(i === 5 || i === 6 || i === 8) style += 'text-align:right;';
+          else if(i === 9 || i === 10) style += 'text-align:center;';
+          let cellBg = altBg, cellFg = '#15252d';
+          if(i === 9){ cellBg = sc.bg; cellFg = sc.fg; }
+          else if(i === 10){ cellBg = ac.bg; cellFg = ac.fg; }
+          style += `background:${cellBg};color:${cellFg};`;
+          if(i === 9 || i === 10) style += 'font-weight:bold;';
+          html += `<td style="${style}">${v}</td>`;
+        });
+        html += '</tr>';
+      });
+      html += '</table></body></html>';
+      const blob = new Blob(['\ufeff' + html], {type:'application/vnd.ms-excel'});
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `批次预警明细_${String(filters.date||BASE_DATE).replace(/-/g,'')}.xls`;
+      link.click();
+      URL.revokeObjectURL(link.href);
     }
 
-    // ===== L1 Drill-down: month + interval detail =====
-    function showDrillL1(month, intervalLabel, rows, source){
-      let allRows = [];
-      if(source === 'table'){
-        const { monthly } = computeMonthlyExpiry();
-        const m = monthly[month];
-        if(m) allRows = [...m.expired, ...m.le30, ...m.le90, ...m.gt90];
-        intervalLabel = '全部区间';
-      } else {
-        allRows = rows || [];
-      }
-      allRows.sort((a, b) => (a.remDays || 0) - (b.remDays || 0));
-      const totalQty = allRows.reduce((s, r) => s + (r.endQty || 0), 0);
-      const totalAmt = allRows.reduce((s, r) => s + (r.endAmt || 0), 0);
-      document.getElementById('drill-l1-title').innerHTML = `${month} · ${intervalLabel}<span>${allRows.length} 条记录</span>`;
-      document.getElementById('drill-l1-body').innerHTML = `
-        <div class="drill-summary">
-          <div><span>命中记录</span><strong>${allRows.length}</strong><small>条</small></div>
-          <div><span>库存数量</span><strong>${fmtNum(totalQty)}</strong><small>KG</small></div>
-          <div><span>库存金额</span><strong>${fmtMoney(totalAmt)}</strong><small>元</small></div>
-        </div>
-        <table class="drill-table">
-          <thead><tr>
-            <th>物料编码</th><th>物料描述</th><th>批次</th><th>品类</th><th>供应商</th>
-            <th class="num">库存数量</th><th class="num">库存金额</th><th>到期日期</th>
-            <th class="center">剩余天数</th><th class="center">可耗用</th>
-          </tr></thead>
-          <tbody>
-            ${allRows.map(r => {
-              const remCls = r.remDays === null ? 'rem-missing' : (r.remDays < 0 ? 'rem-expired' : (r.remDays <= 30 ? 'rem-red' : (r.remDays <= 90 ? 'rem-yellow' : 'rem-green')));
-              return `<tr>
-                <td><span class="mat-code-link" onclick="showDrillL2('${escapeAttr(r.mat)}')">${escapeHtml(r.mat)}</span></td>
-                <td>${escapeHtml(r.sku || '—')}</td>
-                <td>${escapeHtml(r.batch || '—')}</td>
-                <td>${escapeHtml(r.category || '未知')}</td>
-                <td>${escapeHtml(r.supplier || '未知')}</td>
-                <td class="num">${fmtNum(r.endQty)}</td>
-                <td class="num">${fmtMoney(r.endAmt)}</td>
-                <td>${escapeHtml(r.expDate || '—')}</td>
-                <td class="center"><span class="rem-badge ${remCls}">${r.remDays===null?'—':r.remDays+'天'}</span></td>
-                <td class="center"><button class="btn-usable" onclick="showDrillL3('${escapeAttr(r.mat)}','${escapeAttr(r.sku||'')}')">可耗用</button></td>
-              </tr>`;
-            }).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--text-muted)">无记录</td></tr>'}
-          </tbody>
-        </table>`;
-      document.getElementById('drill-l1-overlay').style.display = 'flex';
-    }
-
-    // ===== L2 Drill-down: material profile =====
-    function showDrillL2(matCode){
-      const records = getView().filter(r => r.mat === matCode || normMat(r.mat) === normMat(matCode));
-      const r = records[0] || {};
-      const totalQty = records.reduce((s, x) => s + (x.endQty || 0), 0);
-      const totalAmt = records.reduce((s, x) => s + (x.endAmt || 0), 0);
-      const suppliers = [...new Set(records.map(x => x.supplier).filter(v => v && v !== '未知'))];
-      const batches = [...new Set(records.map(x => x.batch).filter(v => v && v !== '—'))];
-      const minRem = records.map(x => x.remDays).filter(v => v !== null).sort((a, b) => a - b)[0];
-      const bomFlavor = isCommonSupply(r.sku) ? '共用品' : getFlavorFromBom(r.mat);
-      const flavor = bomFlavor !== '—' ? bomFlavor : (r.sku && r.sku.includes('星巴克') ? '星巴克' : (r.flavor || '—'));
-      document.getElementById('drill-l2-title').innerHTML = `物料档案<span>${escapeHtml(matCode)}</span>`;
-      document.getElementById('drill-l2-body').innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px;">
-          <div class="profile-field"><label>物料编码</label><span>${escapeHtml(r.mat || '—')}</span></div>
-          <div class="profile-field"><label>物料描述</label><span>${escapeHtml(r.sku || '—')}</span></div>
-          <div class="profile-field"><label>品类</label><span>${escapeHtml(r.category || '未知')}</span></div>
-          <div class="profile-field"><label>可耗用口味</label><span>${escapeHtml(flavor)}</span></div>
-          <div class="profile-field"><label>供应商</label><span>${escapeHtml(suppliers.join('、') || '—')}</span></div>
-          <div class="profile-field"><label>批次数</label><span>${batches.length} 个批次</span></div>
-          <div class="profile-field"><label>库存数量</label><span>${fmtNum(totalQty)} KG</span></div>
-          <div class="profile-field"><label>库存金额</label><span>${fmtMoney(totalAmt)} 元</span></div>
-          <div class="profile-field"><label>最近到期</label><span>${escapeHtml(r.expDate || '—')}</span></div>
-          <div class="profile-field"><label>最少剩余天数</label><span>${minRem !== undefined ? minRem + ' 天' : '—'}</span></div>
-        </div>
-        <h4 style="margin:16px 0 8px;font-size:14px;color:var(--text-primary);">批次明细</h4>
-        <table class="drill-table">
-          <thead><tr><th>批次</th><th>供应商</th><th class="num">数量</th><th class="num">金额</th><th>到期日期</th><th class="center">剩余天数</th></tr></thead>
-          <tbody>
-            ${records.sort((a, b) => (a.remDays || 0) - (b.remDays || 0)).map(x => {
-              const remCls = x.remDays === null ? 'rem-missing' : (x.remDays < 0 ? 'rem-expired' : (x.remDays <= 30 ? 'rem-red' : (x.remDays <= 90 ? 'rem-yellow' : 'rem-green')));
-              return `<tr>
-                <td>${escapeHtml(x.batch || '—')}</td>
-                <td>${escapeHtml(x.supplier || '—')}</td>
-                <td class="num">${fmtNum(x.endQty)}</td>
-                <td class="num">${fmtMoney(x.endAmt)}</td>
-                <td>${escapeHtml(x.expDate || '—')}</td>
-                <td class="center"><span class="rem-badge ${remCls}">${x.remDays===null?'—':x.remDays+'天'}</span></td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>`;
-      document.getElementById('drill-l2-overlay').style.display = 'flex';
-    }
-
-    // ===== L3 Drill-down: BOM reverse lookup =====
-    function showDrillL3(matCode, sku){
-      const key = normMat(matCode);
-      const entries = (BOM_FLAVOR_MAP && BOM_FLAVOR_MAP.get(key)) || [];
-      const isCommon = isCommonSupply(sku);
-      document.getElementById('drill-l3-title').innerHTML = `BOM反查 — 可耗用成品<span>${escapeHtml(matCode)}</span>`;
-      let body = '';
-      if(isCommon){
-        body = `<div style="padding:20px;text-align:center;">
-          <p style="font-size:16px;color:var(--text-primary);font-weight:600;">共用品</p>
-          <p style="color:var(--text-muted);font-size:13px;">该物料为共用品，可用于多个成品，不限于特定口味。</p>
-        </div>`;
-      } else if(entries.length === 0){
-        body = `<div style="padding:20px;text-align:center;">
-          <p style="color:var(--text-muted);font-size:13px;">未在调配液BOM中找到该物料的关联记录。</p>
-          <p style="color:var(--text-muted);font-size:12px;">请上传含调配液sheet的BOM文件以获取反查结果。</p>
-        </div>`;
-      } else {
-        const flavors = [...new Set(entries.map(e => e.flavor))];
-        const blendNames = [...new Set(entries.map(e => e.blendingName).filter(v => v))];
-        body = `
-          <div class="drill-summary">
-            <div><span>关联口味</span><strong>${flavors.length}</strong><small>种</small></div>
-            <div><span>关联调配液</span><strong>${blendNames.length || entries.length}</strong><small>个</small></div>
-          </div>
-          <h4 style="margin:8px 0;font-size:14px;color:var(--text-primary);">可耗用口味</h4>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
-            ${flavors.map(f => `<span class="flavor-tag-item">${escapeHtml(f)}</span>`).join('')}
-          </div>
-          ${blendNames.length ? `<h4 style="margin:8px 0;font-size:14px;color:var(--text-primary);">调配液明细</h4>
-          <table class="drill-table">
-            <thead><tr><th>调配液编码</th><th>调配液名称</th><th>口味</th></tr></thead>
-            <tbody>
-              ${entries.map(e => `<tr>
-                <td>${escapeHtml(e.blendingCode || '—')}</td>
-                <td>${escapeHtml(e.blendingName || '—')}</td>
-                <td>${escapeHtml(e.flavor || '—')}</td>
-              </tr>`).join('')}
-            </tbody>
-          </table>` : ''}`;
-      }
-      document.getElementById('drill-l3-body').innerHTML = body;
-      document.getElementById('drill-l3-overlay').style.display = 'flex';
-    }
-
-    function closeDrill(level){
-      document.getElementById(`drill-l${level}-overlay`).style.display = 'none';
-    }
-
-    // ===== Export =====
     function exportMonthlyDetails(){
-      if(typeof XLSX === 'undefined'){ alert('Excel导出组件尚未加载'); return; }
+      if(typeof XLSX === 'undefined'){ alert('Excel\u5bfc\u51fa\u7ec4\u4ef6\u5c1a\u672a\u52a0\u8f7d'); return; }
       const { months, monthly } = computeMonthlyExpiry();
       const rows = [];
       months.forEach(m => {
         INTERVALS.forEach(it => {
           monthly[m][it.key].forEach(r => {
             rows.push({
-              '到期月份': m,
-              '效期区间': it.label,
-              '物料编码': r.mat || '',
-              '物料描述': r.sku || '',
-              '批次': r.batch || '',
-              '品类': r.category || '',
-              '供应商': r.supplier || '',
-              '库存数量': r.endQty || 0,
-              '库存金额': Math.round((r.endAmt || 0) * 100) / 100,
-              '到期日期': r.expDate || '',
-              '剩余天数': r.remDays !== null ? r.remDays : '',
-              '效期状态': tagText[r.level] || '',
-              '建议动作': r.action || ''
+              '\u5230\u671f\u6708\u4efd': m,
+              '\u6548\u671f\u533a\u95f4': it.label,
+              '\u7269\u6599\u7f16\u7801': r.mat || '',
+              '\u7269\u6599\u63cf\u8ff0': r.sku || '',
+              '\u6279\u6b21': r.batch || '',
+              '\u54c1\u7c7b': r.category || '',
+              '\u4f9b\u5e94\u5546': r.supplier || '',
+              '\u5e93\u5b58\u6570\u91cf': r.endQty || 0,
+              '\u5e93\u5b58\u91d1\u989d': Math.round((r.endAmt || 0) * 100) / 100,
+              '\u5230\u671f\u65e5\u671f': r.expDate || '',
+              '\u5269\u4f59\u5929\u6570': r.remDays !== null ? r.remDays : '',
+              '\u6548\u671f\u72b6\u6001': tagText[r.level] || '',
+              '\u5efa\u8bae\u52a8\u4f5c': r.action || ''
             });
           });
         });
       });
-      if(!rows.length){ alert('当前条件下没有可导出的明细。'); return; }
+      if(!rows.length){ alert('\u5f53\u524d\u6761\u4ef6\u4e0b\u6ca1\u6709\u53ef\u5bfc\u51fa\u7684\u660e\u7ec6\u3002'); return; }
       const ws = XLSX.utils.json_to_sheet(rows);
       ws['!cols'] = [{wch:10},{wch:8},{wch:18},{wch:30},{wch:15},{wch:10},{wch:20},{wch:12},{wch:14},{wch:12},{wch:10},{wch:10},{wch:14}];
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, '月度效期明细');
-      XLSX.writeFile(wb, `月度效期分析_${String(filters.date||BASE_DATE).replace(/-/g,'')}.xlsx`);
+      XLSX.utils.book_append_sheet(wb, ws, '\u6708\u5ea6\u6548\u671f\u660e\u7ec6');
+      XLSX.writeFile(wb, `\u6708\u5ea6\u6548\u671f\u5206\u6790_${String(filters.date||BASE_DATE).replace(/-/g,'')}.xlsx`);
     }
 
-    function escapeAttr(s){ return String(s==null?'':s).replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+    window.addEventListener('resize', () => { monthlyChart && monthlyChart.resize(); monthlyHeatmapChart && monthlyHeatmapChart.resize(); });
 
-    // Resize monthly chart with others
-    const _origResize = window.onresize;
-    window.addEventListener('resize', () => { monthlyChart && monthlyChart.resize(); });
+    window.computeMonthlyExpiry = computeMonthlyExpiry;
+    window.getRecordFlavor = getRecordFlavor;
+    window.getView = getView;
 
     document.addEventListener('DOMContentLoaded', () => { bindFilters(); initCharts(); });
   </script>
