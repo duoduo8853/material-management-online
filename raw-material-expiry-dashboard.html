@@ -465,7 +465,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         <button class="btn" onclick="renderAll()">⟳ 刷新</button>
     </header>
 
-    <p class="upload-hint">数据来源《模版-原物料v3.xlsx》。主表=金额-数量-单价表（物料级，每行一个物料，期末数量≤0 的不显示）。批次表按物料编码关联，提供仓库(库存地点)与批次号（取最近到期批次）；SKU=金额表.物料描述；实际耗用量=耗用量（按料号聚合）；期末金额/期末数量/单价=金额表；剩余天数=批次号第4-9位(YYMMDD生产日期)+保质期(天)−计算日期。口味=调配液sheet中BOM组件料号关联的调配液名称提取。风险等级：≤0天已过期(报废处理)、0-90天(尽快使用/调拨)、&gt;90天(持续关注)。含字母E的物料编码已做双键兼容关联。报废预警明细页的「库存数量」单独取批次表 F+G+H（库存数量＋待检库存数量＋已冻结库存数量）合计，其余页签仍用金额表期末数量。</p>
+    <p class="upload-hint">数据来源《模版-原物料v3.xlsx》。主表=金额-数量-单价表（物料级，每行一个物料，期末数量≤0 的不显示）。批次表按物料编码关联，提供仓库(库存地点)与批次号（取最近到期批次）；SKU=金额表.物料描述；实际耗用量=耗用量（按料号聚合）；期末金额/期末数量/单价=金额表；剩余天数=批次号第4-9位(YYMMDD生产日期)+保质期(天)−计算日期。口味=调配液sheet中BOM组件料号关联的调配液名称提取。风险等级：≤0天已过期(报废处理)、0-90天(尽快使用/调拨)、&gt;90天(持续关注)。含字母E的物料编码已做双键兼容关联。报废预警明细页按批次分行列示：同一料号的不同批次数量不合并，「库存数量」取该批次在批次表的 F+G+H（库存数量＋待检库存数量＋已冻结库存数量），「库存金额」＝该批次数量×金额表单价，「到期日期/剩余天数」按该批次的生产日期＋保质期单独计算，其余页签仍用金额表期末数量。</p>
 
     <section class="charts-row">
       <div class="card">
@@ -498,7 +498,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
     <section class="replenishment-row">
       <div class="card">
-        <div class="card-title">批次预警明细 <span class="card-sub">按剩余天数升序 · 滚动显示 · 库存数量＝批次表 库存数量＋待检库存数量＋已冻结库存数量</span>
+        <div class="card-title">批次预警明细 <span class="card-sub">按剩余天数升序 · 同一料号按批次分行（数量不合并） · 库存数量＝该批次 库存数量＋待检库存数量＋已冻结库存数量</span>
           <button class="btn btn-export" onclick="exportReplenishmentDetails()" style="float:right;margin-top:-4px;">导出明细</button>
         </div>
         <div class="detail-scroll">
@@ -1055,7 +1055,8 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       const v = (r.batchQty === null || r.batchQty === undefined) ? r.endQty : r.batchQty;
       return Number(v) || 0;
     }
-    // 同一料号可能同时由「金额-数量-单价」与「批次」两张 sheet 产生记录，此处按料号收敛为一行
+    // 同一料号可能同时由「金额-数量-单价」与「批次」两张 sheet 产生记录，此处先按料号收敛为一条物料级记录，
+    // 再按批次展开为多行——同一料号的不同批次数量绝不能合并到同一个到期日，否则临期数量/金额会严重失真。
     function replenishRows(view){
       const groups = new Map();
       // 分组键做料号标准化：跨 sheet 可能出现补零(000000003110201213)与不补零(3110201213)两种写法，
@@ -1077,7 +1078,42 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         }
         groups.set(key, pick);
       });
-      return Array.from(groups.values());
+      const out = [];
+      Array.from(groups.values()).forEach(r => { expandBatchRows(r).forEach(row => out.push(row)); });
+      return out;
+    }
+
+    // 把一条物料级记录展开成「该料号每个批次一行」。
+    // 数量：该批次在批次表的 F+G+H；到期日/剩余天数：按该批次的生产日期＋保质期单独计算；
+    // 金额：该批次数量 × 金额表单价（单价缺失时按数量占比分摊物料期末金额）。
+    // 批次数据缺失（例如内置示例数据、老版本缓存）时原样返回物料级一行，保持兼容。
+    function expandBatchRows(r){
+      const items = Array.isArray(r.batchItems) ? r.batchItems.filter(it => it && Number(it.qty) > 0) : [];
+      if(!items.length) return [r];
+      const totalQty = items.reduce((s, it) => s + (Number(it.qty) || 0), 0);
+      if(!(totalQty > 0)) return [r];
+      const price = Number(r.price) || 0;
+      const endAmt = Number(r.endAmt) || 0;
+      return items.map(it => {
+        const qty = Number(it.qty) || 0;
+        const amt = price > 0 ? qty * price : endAmt * qty / totalQty;
+        const expDate = it.expDate || null;
+        const rem = expDate ? remDaysOf(Object.assign({}, r, { expDate: expDate }), filters.date) : null;
+        const lv = levelOf(rem);
+        return Object.assign({}, r, {
+          batch: it.batch || '',
+          batchQty: Math.round(qty * 1000) / 1000,
+          endQty: Math.round(qty * 1000) / 1000,
+          endAmt: Math.round(amt * 100) / 100,
+          bamt: Math.round(amt * 100) / 100,
+          prodDate: it.prodDate || null,
+          expDate: expDate,
+          remDays: rem,
+          level: lv.level,
+          action: lv.action,
+          batchItems: null
+        });
+      });
     }
 
     function renderDetail(view){
@@ -1609,9 +1645,30 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
           let expDate = toDateObj(actualExp);
           if(!expDate && pd && shelfLife > 0) expDate = new Date(pd.getTime() + shelfLife*86400000);
           const rem = expDate ? Math.round((expDate.getTime()-baseT)/86400000) : null;
-          return { batch:bcode, wh, prodDate:pd, expDate, rem };
+          // 该批次行的库存数量 = F(库存数量) + G(待检库存数量) + H(已冻结库存数量)
+          const qty = num(pickField(br, BATCH_STOCK_COLS))
+            + num(pickField(br, BATCH_PENDING_COLS))
+            + num(pickField(br, BATCH_FROZEN_COLS));
+          return { batch:bcode, wh, prodDate:pd, expDate, rem, qty };
         });
         cand.sort((x,y)=> (x.rem===null?1:0) - (y.rem===null?1:0) || (x.rem==null?0:x.rem) - (y.rem==null?0:y.rem));
+        // 批次级明细：同一批次号的多行（多库存地点）合并，不同批次号必须各自保留，
+        // 供报废预警明细按批次分行使用
+        const batchItemMap = new Map();
+        cand.forEach(c => {
+          if(!(c.qty > 0)) return;
+          const bkey = c.batch || '';
+          const cur = batchItemMap.get(bkey);
+          if(cur){ cur.qty += c.qty; return; }
+          batchItemMap.set(bkey, {
+            batch: c.batch,
+            qty: c.qty,
+            wh: c.wh,
+            prodDate: c.prodDate ? c.prodDate.toISOString().slice(0,10) : null,
+            expDate: c.expDate ? c.expDate.toISOString().slice(0,10) : null
+          });
+        });
+        const batchItems = Array.from(batchItemMap.values());
         let rep = { batch:'—', wh:'未知', prodDate:null, expDate:null, rem:null };
         if(cand.length){ const c0 = cand[0]; rep = { batch:c0.batch, wh:c0.wh, prodDate:c0.prodDate, expDate:c0.expDate, rem:c0.rem }; }
         let level='none', action='—';
@@ -1624,6 +1681,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         const flavor = fEntries.length ? [...new Set(fEntries.map(f => f.flavor))].join('、') : (sku.includes('星巴克') ? '星巴克' : '—');
         out.push({ wh:rep.wh, mat:m, sku, flavor, batch:rep.batch, stock:Math.round(endQty*1000)/1000,
           batchQty: batchQtySum > 0 ? Math.round(batchQtySum*1000)/1000 : null,
+          batchItems: batchItems,
           consume:Math.round(consume*100)/100, endQty:Math.round(endQty*1000)/1000, endAmt:Math.round(endAmt*100)/100,
           begQty:Math.round(begQty*1000)/1000, begAmt:Math.round(begAmt*100)/100, price:Math.round(price*100)/100,
           shelfLife:Math.round(shelfLife*10)/10,
