@@ -1336,12 +1336,16 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       if(!BOM_FLAVOR_MAP || !BOM_FLAVOR_MAP.size) return [];
       return BOM_FLAVOR_MAP.get(normMat(matCode)) || [];
     }
-    // 版本特征：调配液名称括号内容（果糖版 / 2024 / 5%果汁 等），不含日期
+    // 版本特征：调配液名称括号内容（果糖版 / 新版 / 5%果汁 等）；纯数字或年份（2024、2018.05.01）不作为版本显示
     function bomVersionLabel(entry){
       if(!entry) return '';
       const bn = String(entry.blendingName || '');
       const m = bn.match(/[（(]([^）)]{1,24})[）)]/);
-      return (m && m[1] && m[1].trim()) ? m[1].trim() : '';
+      if(!m || !m[1]) return '';
+      const v = m[1].trim();
+      if(!v) return '';
+      if(/^[\d\s.\-\/年月日]+$/.test(v)) return '';
+      return v;
     }
     // 同一 调配液名称 有多条 BOM 修订（有效始于不同）时，只保留最新版本
     function dedupeLatestVersions(entries){
