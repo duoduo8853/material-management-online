@@ -355,6 +355,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     .data-table .mat-cell span { display: block; font-size: 11px; color: #7a8a87; }
     .data-table .flavor-cell-tags { display: flex; flex-wrap: wrap; gap: 3px; }
     .data-table .flavor-tag-item { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 11px; background: rgba(22,79,74,0.08); color: #164f4a; border: 1px solid rgba(22,79,74,0.12); }
+    .data-table .flavor-tag-item em { font-style: normal; font-size: 10px; opacity: 0.72; margin-left: 4px; }
 
     .tag { display: inline-flex; align-items: center; justify-content: center; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
     .tag-critical { background: rgba(208,59,59,0.12); color: var(--status-critical); }
@@ -1084,11 +1085,30 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       document.getElementById('detail-body').innerHTML = sorted.map(r => {
         const remState = r.remDays === null ? 'missing' : (r.remDays < 0 ? 'expired' : (r.remDays <= 30 ? 'red' : (r.remDays <= 90 ? 'yellow' : 'green')));
         const actCls = r.remDays === null ? 'tag-action-blue' : (r.remDays < 0 ? 'tag-action-red' : (r.remDays <= 90 ? 'tag-action-orange' : 'tag-action-green'));
-        const bomFlavor = isCommonSupply(r.sku) ? '共用品' : getFlavorFromBom(r.mat);
-        const flavor = bomFlavor !== '—' ? bomFlavor : (r.sku && r.sku.includes('星巴克') ? '星巴克' : (r.flavor || '—'));
-        const flavorHtml = flavor && flavor !== '—'
-          ? '<div class="flavor-cell-tags">' + flavor.split('、').map(f => `<span class="flavor-tag-item">${escapeHtml(f)}</span>`).join('') + '</div>'
-          : '—';
+        // 可耗用口味（含版本）：每个 调配液版本 一个标签，悬停显示调配液全名与有效始于
+        let flavorHtml = '—';
+        if(isCommonSupply(r.sku)){
+          flavorHtml = '<div class="flavor-cell-tags"><span class="flavor-tag-item">共用品</span></div>';
+        } else {
+          const flavorEntries = dedupeLatestVersions(getFlavorVersionEntries(r.mat));
+          if(flavorEntries.length){
+            const seen = new Set(); const tags = [];
+            flavorEntries.forEach(e => {
+              const v = bomVersionLabel(e);
+              const key = e.flavor + '|' + v;
+              if(seen.has(key)) return; seen.add(key);
+              const tipParts = [];
+              if(e.blendingName) tipParts.push(e.blendingName);
+              if(e.validFrom) tipParts.push('有效始于 ' + e.validFrom);
+              const tip = escapeHtml(tipParts.join(' · '));
+              tags.push('<span class="flavor-tag-item" title="' + tip + '">' + escapeHtml(e.flavor) + (v ? '<em>' + escapeHtml(v) + '</em>' : '') + '</span>');
+            });
+            if(tags.length) flavorHtml = '<div class="flavor-cell-tags">' + tags.join('') + '</div>';
+          } else {
+            const fallback = (r.sku && r.sku.includes('星巴克')) ? '星巴克' : (r.flavor || '—');
+            if(fallback !== '—') flavorHtml = '<div class="flavor-cell-tags"><span class="flavor-tag-item">' + escapeHtml(fallback) + '</span></div>';
+          }
+        }
         return `
         <tr>
           <td class="mat-cell"><strong>${escapeHtml(r.sku || '未标注物料')}</strong><span>${escapeHtml(r.mat)}</span></td>
@@ -1295,7 +1315,8 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       blendingName: ['调配液','调配液名称','调配液描述','BOM表头物料名称','表头物料名称','调配液品名','品名'],
       materialCode: ['物料','物料编码','物料号','料号','BOM组件料号','组件料号','子件料号','子件物料','原料料号','原料编码','BOM子件料号','BOM子件编码','子件编码','原材料编码','原材料料号'],
       materialName: ['物料描述','物料名称','BOM组件名称','组件名称','子件名称','原材料名称','原材料描述'],
-      flavor: ['口味','风味','产品口味','品味','口味名称','风味名称']
+      flavor: ['口味','风味','产品口味','品味','口味名称','风味名称'],
+      validFrom: ['有效始于','有效起始','生效日期','有效从','有效开始日期','开始日期']
     };
     function findBomHeaderRow(row){
       const normalized = row.map(normH);
@@ -1312,15 +1333,53 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       if(/^\d+$/.test(s)) return s.replace(/^0+/, '') || '0';
       return s;
     }
+    function getFlavorVersionEntries(matCode){
+      if(!BOM_FLAVOR_MAP || !BOM_FLAVOR_MAP.size) return [];
+      return BOM_FLAVOR_MAP.get(normMat(matCode)) || [];
+    }
+    // 版本特征：调配液名称括号内容（果糖版 / 2024 / 5%果汁 等）+ 有效始于日期
+    function bomVersionLabel(entry){
+      if(!entry) return '';
+      const bn = String(entry.blendingName || '');
+      const m = bn.match(/[（(]([^）)]{1,24})[）)]/);
+      const parts = [];
+      if(m && m[1] && m[1].trim()) parts.push(m[1].trim());
+      const vf = String(entry.validFrom || '').trim();
+      if(vf) parts.push(vf);
+      return parts.join(' · ');
+    }
+    // 同一 调配液名称 有多条 BOM 修订（有效始于不同）时，只保留最新版本
+    function dedupeLatestVersions(entries){
+      const byKey = new Map();
+      entries.forEach(e => {
+        const key = (e.flavor||'') + '\u0001' + (e.blendingName||'');
+        const cur = byKey.get(key);
+        if(!cur){ byKey.set(key, e); return; }
+        const dv = String(e.validFrom||'').replace(/\D/g,'');
+        const dc = String(cur.validFrom||'').replace(/\D/g,'');
+        if(dv && (!dc || dv >= dc)) byKey.set(key, e);
+      });
+      return Array.from(byKey.values());
+    }
+    // 「口味(版本)」文本：用于导出与下钻弹窗
+    function getFlavorVersionText(matCode){
+      const entries = dedupeLatestVersions(getFlavorVersionEntries(matCode));
+      if(!entries.length) return '—';
+      const seen = new Set(); const out = [];
+      entries.forEach(e => {
+        const v = bomVersionLabel(e);
+        const label = v ? e.flavor + '(' + v + ')' : e.flavor;
+        if(!seen.has(label)){ seen.add(label); out.push(label); }
+      });
+      return out.join('、');
+    }
     function getFlavorFromBom(matCode){
-      if(!BOM_FLAVOR_MAP || !BOM_FLAVOR_MAP.size) return '—';
-      const key = normMat(matCode);
-      const entries = BOM_FLAVOR_MAP.get(key) || [];
+      const entries = getFlavorVersionEntries(matCode);
       if(!entries.length) return '—';
       return [...new Set(entries.map(e => e.flavor))].join('、');
     }
     function getRecordFlavor(mat, sku){
-      const bomFlavor = isCommonSupply(sku) ? '共用品' : getFlavorFromBom(mat);
+      const bomFlavor = isCommonSupply(sku) ? '共用品' : getFlavorVersionText(mat);
       if(bomFlavor !== '—') return bomFlavor;
       if(sku && sku.includes('星巴克')) return '星巴克';
       return '—';
@@ -1628,12 +1687,13 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
               if(!mc || normH(mc) === normH('物料')) continue;
               const bn = headerMap.blendingName !== undefined ? String(row[headerMap.blendingName]||'').trim().replace(/\s+/g,' ') : '';
               const fl = headerMap.flavor !== undefined ? String(row[headerMap.flavor]||'').trim().replace(/\s+/g,' ') : '';
+              const vf = headerMap.validFrom !== undefined ? String(row[headerMap.validFrom]||'').trim().replace(/\s+/g,' ') : '';
               const flavor = fl || extractFlavorFromName(bn);
               if(!flavor) continue;
               if(!newMap.has(mc)) newMap.set(mc, []);
               const arr = newMap.get(mc);
-              if(!arr.some(f => f.flavor === flavor && f.blendingName === bn)){
-                arr.push({ flavor, blendingName: bn });
+              if(!arr.some(f => f.flavor === flavor && f.blendingName === bn && (f.validFrom||'') === vf)){
+                arr.push({ flavor, blendingName: bn, validFrom: vf });
               }
             }
           });
@@ -1967,8 +2027,8 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         const altBg = idx % 2 === 0 ? '#ffffff' : '#f4f8f7';
         const status = r.remDays === null ? '无保质期' : (r.remDays < 0 ? '已过期' : (r.remDays <= 30 ? '≤30天' : (r.remDays <= 90 ? '30-90天' : '>90天')));
         const action = r.remDays === null ? '不参与风险统计' : (r.remDays < 0 ? '报废处理' : (r.remDays <= 90 ? '尽快使用/调拨' : '持续关注'));
-        const bomFlavor = isCommonSupply(r.sku) ? '共用品' : getFlavorFromBom(r.mat);
-        const flavor = bomFlavor !== '—' ? bomFlavor : (r.sku && r.sku.indexOf('星巴克') >= 0 ? '星巴克' : '—');
+        const bomFlavor = isCommonSupply(r.sku) ? '共用品' : getFlavorVersionText(r.mat);
+        const flavor = bomFlavor;
         const sc = statusColors[status] || {bg:altBg, fg:'#15252d'};
         const ac = actionColors[action] || {bg:altBg, fg:'#15252d'};
         const vals = [
