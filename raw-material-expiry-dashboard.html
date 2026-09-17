@@ -1058,8 +1058,14 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
     // 同一料号可能同时由「金额-数量-单价」与「批次」两张 sheet 产生记录，此处按料号收敛为一行
     function replenishRows(view){
       const groups = new Map();
+      // 分组键做料号标准化：跨 sheet 可能出现补零(000000003110201213)与不补零(3110201213)两种写法，
+      // 若不归一会被当成两个物料，导出后表现为同一物料重复两行
+      const groupKeyOf = r => {
+        const raw = String(r.mat || r.sku || '');
+        return raw ? normMat(raw) : raw;
+      };
       view.forEach(r => {
-        const key = String(r.mat || r.sku || '');
+        const key = groupKeyOf(r);
         const cur = groups.get(key);
         if(!cur){ groups.set(key, r); return; }
         const amt = v => Number(v && v.endAmt) || 0;
@@ -2003,6 +2009,9 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         return ra - rb;
       });
       if(!sorted.length){ alert('当前条件下没有可导出的明细。'); return; }
+      // 库存金额为 0 的行不导出（多为账套/工厂空行，会造成同一物料重复出现）
+      const exportRows = sorted.filter(r => Number(r.endAmt) > 0);
+      if(!exportRows.length){ alert('当前条件下没有可导出的明细（库存金额均为 0）。'); return; }
       const headers = ['物料编码','物料描述','批次','品类','供应商','库存数量','库存金额','到期日期','剩余天数','效期状态','建议动作','可耗用口味'];
       const statusColors = {
         '已过期':   {bg:'#c0392b', fg:'#ffffff'},
@@ -2022,7 +2031,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       html += '<tr style="background:#164f4a;color:#ffffff;font-weight:bold;text-align:center;height:28px;">';
       headers.forEach(h => { html += `<th style="padding:6px 10px;border:1px solid #0d3a35;white-space:nowrap;">${h}</th>`; });
       html += '</tr>';
-      sorted.forEach((r, idx) => {
+      exportRows.forEach((r, idx) => {
         const altBg = idx % 2 === 0 ? '#ffffff' : '#f4f8f7';
         const status = r.remDays === null ? '无保质期' : (r.remDays < 0 ? '已过期' : (r.remDays <= 30 ? '≤30天' : (r.remDays <= 90 ? '30-90天' : '>90天')));
         const action = r.remDays === null ? '不参与风险统计' : (r.remDays < 0 ? '报废处理' : (r.remDays <= 90 ? '尽快使用/调拨' : '持续关注'));
