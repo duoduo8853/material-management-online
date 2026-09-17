@@ -1085,7 +1085,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       document.getElementById('detail-body').innerHTML = sorted.map(r => {
         const remState = r.remDays === null ? 'missing' : (r.remDays < 0 ? 'expired' : (r.remDays <= 30 ? 'red' : (r.remDays <= 90 ? 'yellow' : 'green')));
         const actCls = r.remDays === null ? 'tag-action-blue' : (r.remDays < 0 ? 'tag-action-red' : (r.remDays <= 90 ? 'tag-action-orange' : 'tag-action-green'));
-        // 可耗用口味（含版本）：每个 调配液版本 一个标签，悬停显示调配液全名与有效始于
+        // 可耗用口味（含版本）：每个 调配液版本 一个标签，悬停显示调配液全名
         let flavorHtml = '—';
         if(isCommonSupply(r.sku)){
           flavorHtml = '<div class="flavor-cell-tags"><span class="flavor-tag-item">共用品</span></div>';
@@ -1099,7 +1099,6 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
               if(seen.has(key)) return; seen.add(key);
               const tipParts = [];
               if(e.blendingName) tipParts.push(e.blendingName);
-              if(e.validFrom) tipParts.push('有效始于 ' + e.validFrom);
               const tip = escapeHtml(tipParts.join(' · '));
               tags.push('<span class="flavor-tag-item" title="' + tip + '">' + escapeHtml(e.flavor) + (v ? '<em>' + escapeHtml(v) + '</em>' : '') + '</span>');
             });
@@ -1337,16 +1336,12 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       if(!BOM_FLAVOR_MAP || !BOM_FLAVOR_MAP.size) return [];
       return BOM_FLAVOR_MAP.get(normMat(matCode)) || [];
     }
-    // 版本特征：调配液名称括号内容（果糖版 / 2024 / 5%果汁 等）+ 有效始于日期
+    // 版本特征：调配液名称括号内容（果糖版 / 2024 / 5%果汁 等），不含日期
     function bomVersionLabel(entry){
       if(!entry) return '';
       const bn = String(entry.blendingName || '');
       const m = bn.match(/[（(]([^）)]{1,24})[）)]/);
-      const parts = [];
-      if(m && m[1] && m[1].trim()) parts.push(m[1].trim());
-      const vf = String(entry.validFrom || '').trim();
-      if(vf) parts.push(vf);
-      return parts.join(' · ');
+      return (m && m[1] && m[1].trim()) ? m[1].trim() : '';
     }
     // 同一 调配液名称 有多条 BOM 修订（有效始于不同）时，只保留最新版本
     function dedupeLatestVersions(entries){
