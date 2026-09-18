@@ -649,7 +649,29 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
     }
 
     function getView(){
-      return RAW.map(r => {
+      // 数据基于「批次」sheet 逐批次展开：先按料号收敛（补零/不补零、金额表多行），
+      // 再展开为「每个批次一行」——同一料号的不同批次各自保留数量与到期日，不得合并；
+      // 预警等级按各批次自己的剩余天数独立计算（例：3140302218 仅 TYP2510271 的 14.85 计中风险）。
+      const matGroups = new Map();
+      RAW.forEach(r => {
+        const rawKey = String(r.mat || r.sku || '');
+        const gkey = rawKey ? normMat(rawKey) : rawKey;
+        const cur = matGroups.get(gkey);
+        if(!cur){ matGroups.set(gkey, r); return; }
+        const gAmt = v => Number(v && v.endAmt) || 0;
+        let pick = gAmt(r) > gAmt(cur) ? r : cur;
+        const other = pick === r ? cur : r;
+        if((pick.batchQty === null || pick.batchQty === undefined) && other.batchQty !== null && other.batchQty !== undefined){
+          pick = Object.assign({}, pick, { batchQty: other.batchQty });
+        }
+        if((pick.batchItems === null || pick.batchItems === undefined) && other.batchItems !== null && other.batchItems !== undefined){
+          pick = Object.assign({}, pick, { batchItems: other.batchItems });
+        }
+        matGroups.set(gkey, pick);
+      });
+      const batchRows = [];
+      matGroups.forEach(r => { expandBatchRows(r).forEach(row => batchRows.push(row)); });
+      return batchRows.map(r => {
         const rem = remDaysOf(r, filters.date);
         const lv = levelOf(rem);
         return Object.assign({}, r, { remDays: rem, level: lv.level, action: lv.action });
@@ -681,7 +703,10 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
           else if(r.remDays <= 30){ highStock += r.stock; highAmt += r.bamt; }
           else if(r.remDays <= 90){ midStock += r.stock; midAmt += r.bamt; }
         }
-        endAmtMap[r.mat] = r.endAmt; begAmtMap[r.mat] = r.begAmt; begQtyMap[r.mat] = r.begQty;
+        // 视图为批次级：同一料号会有多个批次行，金额/期初需累加而不是覆盖
+        endAmtMap[r.mat] = (endAmtMap[r.mat] || 0) + r.endAmt;
+        begAmtMap[r.mat] = (begAmtMap[r.mat] || 0) + r.begAmt;
+        begQtyMap[r.mat] = (begQtyMap[r.mat] || 0) + r.begQty;
       });
       const totalEndAmt = Object.values(endAmtMap).reduce((a,b)=>a+b,0);
       const totalBegAmt = Object.values(begAmtMap).reduce((a,b)=>a+b,0);
@@ -691,7 +716,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       return [
         { label:'库存总量', value:totalStock, unit:'', delta:dQty, icon:'📦', color:'orange', goodUp:true, int:true },
         { label:'库存总金额', value:totalEndAmt/1000, unit:'千元', delta:dAmt, icon:'¥', color:'blue', goodUp:true, money:true, int:true },
-        { label:'物料数', value:view.length, unit:'种', delta:null, icon:'🏷️', color:'aqua', goodUp:true },
+        { label:'物料数', value:(function(){ const seen=new Set(); view.forEach(r=>seen.add(normMat(String(r.mat||r.sku||'')))); return seen.size; })(), unit:'种', delta:null, icon:'🏷️', color:'aqua', goodUp:true },
         { label:'已过期库存量', value:expiredStock, unit:'', delta:null, icon:'⚠️', color:'critical', goodUp:false, int:true },
         { label:'已过期库存金额', value:expiredAmt/1000, unit:'千元', delta:null, icon:'💸', color:'critical', goodUp:false, money:true, int:true },
         { label:'高风险批次量(≤30天)', value:highStock, unit:'', delta:null, icon:'🔴', color:'amber', goodUp:false, int:true },
@@ -1063,7 +1088,10 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
       // 若不归一会被当成两个物料，导出后表现为同一物料重复两行
       const groupKeyOf = r => {
         const raw = String(r.mat || r.sku || '');
-        return raw ? normMat(raw) : raw;
+        const base = raw ? normMat(raw) : raw;
+        // 行已是批次级（getView 展开后 batchItems 为空且带批次号）时按「料号+批次」独立成行，
+        // 不再按料号收敛，否则同料号的不同批次会被并掉一行
+        return (r.batchItems == null && r.batch) ? base + '|' + String(r.batch) : base;
       };
       view.forEach(r => {
         const key = groupKeyOf(r);
@@ -1103,6 +1131,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
         return Object.assign({}, r, {
           batch: it.batch || '',
           batchQty: Math.round(qty * 1000) / 1000,
+          stock: Math.round(qty * 1000) / 1000,
           endQty: Math.round(qty * 1000) / 1000,
           endAmt: Math.round(amt * 100) / 100,
           bamt: Math.round(amt * 100) / 100,
