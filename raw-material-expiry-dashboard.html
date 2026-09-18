@@ -2143,6 +2143,7 @@ const EMBEDDED = {"today":"2026-07-22","records":[{"wh":"0001","mat":"7373700000
           else if(i === 10){ cellBg = ac.bg; cellFg = ac.fg; }
           style += `background:${cellBg};color:${cellFg};`;
           if(i === 9 || i === 10) style += 'font-weight:bold;';
+          if(i === 0 || i === 2) style += "mso-number-format:'\\@';"; // 物料编码/批次按文本格式导出，避免 Excel 科学计数法
           html += `<td style="${style}">${v}</td>`;
         });
         html += '</tr>';
