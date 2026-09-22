@@ -2138,48 +2138,42 @@ const EMBEDDED = {"today":"2026-07-22","__sample":true,"records":[{"wh":"0001","
         '持续关注':       {bg:'#27ae60', fg:'#ffffff'},
         '不参与风险统计': {bg:'#90a4ae', fg:'#ffffff'}
       };
-      let html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>批次预警明细</x:Name><x:WorksheetOptions><x:FreezePanes><x:FrozenNoSelection/><x:SplitHorizontal>1</x:SplitHorizontal><x:TopRowBottom>1</x:TopRowBottom><x:ActivePane>BottomPane</x:ActivePane></x:FreezePanes></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body>';
-      html += '<table border="1" style="border-collapse:collapse;font-family:Microsoft YaHei,sans-serif;font-size:11px;">';
-      html += '<tr style="background:#164f4a;color:#ffffff;font-weight:bold;text-align:center;height:28px;">';
-      headers.forEach(h => { html += `<th style="padding:6px 10px;border:1px solid #0d3a35;white-space:nowrap;">${h}</th>`; });
-      html += '</tr>';
-      exportRows.forEach((r, idx) => {
-        const altBg = idx % 2 === 0 ? '#ffffff' : '#f4f8f7';
+      if(typeof XLSX === 'undefined'){ alert('Excel 导出组件尚未加载，请刷新页面后重试。'); return; }
+      // 真 xlsx 导出（旧版 HTML 假 Excel 单发给他人会报「丢失 …files\sheet001.htm」）
+      const rows = exportRows.map(r => {
         const status = r.remDays === null ? '无保质期' : (r.remDays < 0 ? '已过期' : (r.remDays <= 30 ? '≤30天' : (r.remDays <= 90 ? '30-90天' : '>90天')));
         const action = r.remDays === null ? '不参与风险统计' : (r.remDays < 0 ? '报废处理' : (r.remDays <= 90 ? '尽快使用/调拨' : '持续关注'));
-        const bomFlavor = isCommonSupply(r.sku) ? '共用品' : getFlavorVersionText(r.mat);
-        const flavor = bomFlavor;
-        const sc = statusColors[status] || {bg:altBg, fg:'#15252d'};
-        const ac = actionColors[action] || {bg:altBg, fg:'#15252d'};
-        const vals = [
-          r.mat || '', r.sku || '', r.batch || '', r.category || '', r.supplier || '',
-          replenishQty(r).toLocaleString('zh-CN', { maximumFractionDigits: 2 }),
-          Math.round((r.endAmt || 0) * 100) / 100,
-          r.expDate || '', r.remDays !== null ? r.remDays : '',
-          status, action, flavor
-        ];
-        html += `<tr style="background:${altBg};">`;
-        vals.forEach((v, i) => {
-          let style = `padding:5px 10px;border:1px solid #e0e0e0;white-space:nowrap;`;
-          if(i === 5 || i === 6 || i === 8) style += 'text-align:right;';
-          else if(i === 9 || i === 10) style += 'text-align:center;';
-          let cellBg = altBg, cellFg = '#15252d';
-          if(i === 9){ cellBg = sc.bg; cellFg = sc.fg; }
-          else if(i === 10){ cellBg = ac.bg; cellFg = ac.fg; }
-          style += `background:${cellBg};color:${cellFg};`;
-          if(i === 9 || i === 10) style += 'font-weight:bold;';
-          if(i === 0 || i === 2) style += "mso-number-format:'\\@';"; // 物料编码/批次按文本格式导出，避免 Excel 科学计数法
-          html += `<td style="${style}">${v}</td>`;
-        });
-        html += '</tr>';
+        const flavor = isCommonSupply(r.sku) ? '共用品' : getFlavorVersionText(r.mat);
+        return {
+          '物料编码': r.mat || '',
+          '物料描述': r.sku || '',
+          '批次': r.batch || '',
+          '品类': r.category || '',
+          '供应商': r.supplier || '',
+          '库存数量': replenishQty(r),
+          '库存金额': Math.round((r.endAmt || 0) * 100) / 100,
+          '到期日期': r.expDate || '',
+          '剩余天数': r.remDays !== null ? r.remDays : '',
+          '效期状态': status,
+          '建议动作': action,
+          '可耗用口味': flavor
+        };
       });
-      html += '</table></body></html>';
-      const blob = new Blob(['\ufeff' + html], {type:'application/vnd.ms-excel'});
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `批次预警明细_${String(filters.date||BASE_DATE).replace(/-/g,'')}.xls`;
-      link.click();
-      URL.revokeObjectURL(link.href);
+      const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+      // 物料编码(A)/批次(C)按文本写入，避免 Excel 科学计数法
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      for(let R = range.s.r + 1; R <= range.e.r; ++R){
+        for(const col of ['A','C']){
+          const cell = ws[col + R];
+          if(cell && cell.v !== '' && cell.v !== undefined){
+            cell.t = 's'; cell.v = String(cell.v); cell.w = String(cell.v);
+          }
+        }
+      }
+      ws['!cols'] = [{wch:12},{wch:34},{wch:14},{wch:12},{wch:18},{wch:11},{wch:11},{wch:12},{wch:9},{wch:10},{wch:14},{wch:22}];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '批次预警明细');
+      XLSX.writeFile(wb, `批次预警明细_${String(filters.date||BASE_DATE).replace(/-/g,'')}.xlsx`);
     }
 
     function exportMonthlyDetails(){
