@@ -409,12 +409,12 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     .nocon-controls .filter-item select { padding: 6px 10px; font-size: 13px; }
     .nocon-controls .btn-export { padding: 6px 16px; font-size: 13px; }
     .nocon-note { margin-left: auto; font-size: 12px; color: var(--text-muted); align-self: center; }
-    .nocon-scroll { max-height: 560px; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
+    .nocon-scroll { max-height: 560px; overflow-y: auto; overflow-x: auto; overscroll-behavior: contain; }
     .nocon-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
     .nocon-scroll::-webkit-scrollbar-thumb { background: var(--gridline); border-radius: 3px; }
     .nocon-scroll .data-table thead th { position: sticky; top: 0; z-index: 1; }
     .nocon-table .col-mat { width: 12%; }
-    .nocon-table .col-sku { width: 23%; }
+    .nocon-table .col-sku { width: 20%; }
     .nocon-table .col-cat { width: 10%; white-space: normal !important; overflow: visible; word-break: break-word; }
     .nocon-table .col-batch { width: 11%; }
     .nocon-table .col-wh { width: 8%; }
@@ -422,7 +422,8 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
     .nocon-table .col-date { width: 9%; }
     .nocon-table .col-rem { width: 6%; }
     .nocon-table .col-status { width: 6%; }
-    .nocon-table .col-action { width: 8%; }
+    .nocon-table .col-action { width: 7%; }
+    .nocon-table .col-flavor { width: 12%; white-space: normal !important; overflow: visible; }
     .monthly-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .monthly-controls .filter-item { flex-direction: row; align-items: center; gap: 6px; }
     .monthly-controls .filter-item label { font-size: 13px; }
@@ -649,6 +650,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
                 <th class="center col-rem">剩余天数</th>
                 <th class="center col-status">效期状态</th>
                 <th class="center col-action">建议动作</th>
+                <th class="col-flavor">可耗用口味</th>
               </tr>
             </thead>
             <tbody id="nocon-body"></tbody>
@@ -1276,29 +1278,7 @@ const EMBEDDED = {"today":"2026-07-22","__sample":true,"records":[{"wh":"0001","
       document.getElementById('detail-body').innerHTML = sorted.map(r => {
         const remState = r.remDays === null ? 'missing' : (r.remDays < 0 ? 'expired' : (r.remDays <= 30 ? 'red' : (r.remDays <= 90 ? 'yellow' : 'green')));
         const actCls = r.remDays === null ? 'tag-action-blue' : (r.remDays < 0 ? 'tag-action-red' : (r.remDays <= 90 ? 'tag-action-orange' : 'tag-action-green'));
-        // 可耗用口味（含版本）：每个 调配液版本 一个标签，悬停显示调配液全名
-        let flavorHtml = '—';
-        if(isCommonSupply(r.sku)){
-          flavorHtml = '<div class="flavor-cell-tags"><span class="flavor-tag-item">共用品</span></div>';
-        } else {
-          const flavorEntries = dedupeLatestVersions(getFlavorVersionEntries(r.mat));
-          if(flavorEntries.length){
-            const seen = new Set(); const tags = [];
-            flavorEntries.forEach(e => {
-              const v = bomVersionLabel(e);
-              const key = e.flavor + '|' + v;
-              if(seen.has(key)) return; seen.add(key);
-              const tipParts = [];
-              if(e.blendingName) tipParts.push(e.blendingName);
-              const tip = escapeHtml(tipParts.join(' · '));
-              tags.push('<span class="flavor-tag-item" title="' + tip + '">' + escapeHtml(e.flavor) + (v ? '<em>' + escapeHtml(v) + '</em>' : '') + '</span>');
-            });
-            if(tags.length) flavorHtml = '<div class="flavor-cell-tags">' + tags.join('') + '</div>';
-          } else {
-            const fallback = (r.sku && r.sku.includes('星巴克')) ? '星巴克' : (r.flavor || '—');
-            if(fallback !== '—') flavorHtml = '<div class="flavor-cell-tags"><span class="flavor-tag-item">' + escapeHtml(fallback) + '</span></div>';
-          }
-        }
+        const flavorHtml = flavorCellHtml(r.mat, r.sku, r.flavor);
         return `
         <tr>
           <td class="mat-cell"><strong>${escapeHtml(r.sku || '未标注物料')}</strong><span>${escapeHtml(r.mat)}</span></td>
@@ -1583,6 +1563,30 @@ const EMBEDDED = {"today":"2026-07-22","__sample":true,"records":[{"wh":"0001","
       const bomFlavor = isCommonSupply(sku) ? '共用品' : getFlavorVersionText(mat);
       if(bomFlavor !== '—') return bomFlavor;
       if(sku && sku.includes('星巴克')) return '星巴克';
+      return '—';
+    }
+
+    // 可耗用口味单元格（03 报废预警 / 05 无耗用明细 共用）：每个 调配液版本 一个标签，悬停显示调配液全名
+    function flavorCellHtml(mat, sku, fallbackFlavor){
+      if(isCommonSupply(sku)){
+        return '<div class="flavor-cell-tags"><span class="flavor-tag-item">共用品</span></div>';
+      }
+      const entries = dedupeLatestVersions(getFlavorVersionEntries(mat));
+      if(entries.length){
+        const seen = new Set(); const tags = [];
+        entries.forEach(e => {
+          const v = bomVersionLabel(e);
+          const key = e.flavor + '|' + v;
+          if(seen.has(key)) return; seen.add(key);
+          const tipParts = [];
+          if(e.blendingName) tipParts.push(e.blendingName);
+          const tip = escapeHtml(tipParts.join(' · '));
+          tags.push('<span class="flavor-tag-item" title="' + tip + '">' + escapeHtml(e.flavor) + (v ? '<em>' + escapeHtml(v) + '</em>' : '') + '</span>');
+        });
+        if(tags.length) return '<div class="flavor-cell-tags">' + tags.join('') + '</div>';
+      }
+      const fb = (sku && sku.includes('星巴克')) ? '星巴克' : (fallbackFlavor || '—');
+      if(fb !== '—') return '<div class="flavor-cell-tags"><span class="flavor-tag-item">' + escapeHtml(fb) + '</span></div>';
       return '—';
     }
 
@@ -2482,6 +2486,7 @@ const EMBEDDED = {"today":"2026-07-22","__sample":true,"records":[{"wh":"0001","
             action: NOCON_STATUS[key].action,
             endQty: Number(it.endQty) || 0,
             endAmt: Number(it.endAmt) || 0,
+            flavor: it.flavor || '',
             inAmountSheet: !!it.inAmountSheet
           });
         });
@@ -2576,8 +2581,9 @@ const EMBEDDED = {"today":"2026-07-22","__sample":true,"records":[{"wh":"0001","
           <td class="center"><span class="rem-badge ${st.badge}">${r.remDays === null ? '—' : r.remDays + ' 天'}</span></td>
           <td class="center"><span class="status-badge ${st.status}">${st.label}</span></td>
           <td class="center"><span class="${st.actCls}">${escapeHtml(r.action)}</span></td>
+          <td class="col-flavor">${flavorCellHtml(r.mat, r.sku, r.flavor)}</td>
         </tr>`;
-      }).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--text-muted)">当前筛选条件下没有「批次表有料号、耗用表无该料号」的明细</td></tr>';
+      }).join('') || '<tr><td colspan="11" style="text-align:center;color:var(--text-muted)">当前筛选条件下没有「批次表有料号、耗用表无该料号」的明细</td></tr>';
     }
     function renderNoConsumeCharts(rows){
       const catEl = document.getElementById('chart-nocon-cat');
@@ -2668,7 +2674,7 @@ const EMBEDDED = {"today":"2026-07-22","__sample":true,"records":[{"wh":"0001","
       if(typeof XLSX === 'undefined'){ alert('Excel 导出组件尚未加载，请刷新页面后重试。'); return; }
       const rows = noconSort(noConsumeView());
       if(!rows.length){ alert('当前条件下没有可导出的明细。'); return; }
-      const headers = ['物料编码','物料描述','品类','供应商','批次','库存地点','库存数量','库存金额','生产日期','到期日期','剩余天数','效期状态','建议动作','耗用记录'];
+      const headers = ['物料编码','物料描述','品类','供应商','批次','库存地点','库存数量','库存金额','生产日期','到期日期','剩余天数','效期状态','建议动作','可耗用口味','耗用记录'];
       const data = rows.map(r => ({
         '物料编码': r.mat || '',
         '物料描述': r.sku || '',
@@ -2683,6 +2689,7 @@ const EMBEDDED = {"today":"2026-07-22","__sample":true,"records":[{"wh":"0001","
         '剩余天数': r.remDays === null ? '' : r.remDays,
         '效期状态': NOCON_STATUS[r.level].label,
         '建议动作': r.action,
+        '可耗用口味': isCommonSupply(r.sku) ? '共用品' : getFlavorVersionText(r.mat),
         '耗用记录': '耗用量sheet无此料号'
       }));
       const ws = XLSX.utils.json_to_sheet(data, { header: headers });
@@ -2694,7 +2701,7 @@ const EMBEDDED = {"today":"2026-07-22","__sample":true,"records":[{"wh":"0001","
           if(cell && cell.v !== '' && cell.v !== undefined){ cell.t = 's'; cell.v = String(cell.v); cell.w = String(cell.v); }
         });
       }
-      ws['!cols'] = [{wch:14},{wch:34},{wch:12},{wch:20},{wch:14},{wch:10},{wch:12},{wch:13},{wch:12},{wch:12},{wch:10},{wch:10},{wch:14},{wch:18}];
+      ws['!cols'] = [{wch:14},{wch:34},{wch:12},{wch:20},{wch:14},{wch:10},{wch:12},{wch:13},{wch:12},{wch:12},{wch:10},{wch:10},{wch:14},{wch:22},{wch:18}];
       xlsSkin(ws, headers, {
         center:['批次','库存地点','库存数量','剩余天数','效期状态','建议动作'],
         integer:['库存数量','剩余天数'],
