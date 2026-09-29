@@ -2670,6 +2670,122 @@ const EMBEDDED = {"today":"2026-07-22","__sample":true,"records":[{"wh":"0001","
       if(q) q.classList.toggle('active', m === 'qty');
       renderNoConsume();
     }
+
+    // ===== 05 导出附加 sheet：按「可耗用口味 × 效期状态」统计物料剩余（数量 / 金额）=====
+    const NOCON_SUMMARY_COLS = [
+      { key:'expired', label:'已过期' },
+      { key:'le30',    label:'≤30天' },
+      { key:'le90',    label:'30-90天' },
+      { key:'gt90',    label:'>90天' },
+      { key:'missing', label:'效期缺失' }
+    ];
+    const NOCON_SUMMARY_FILL = {
+      expired:{bg:'FBE0DD', fg:'A52714'},
+      le30:   {bg:'FCE8D6', fg:'B4521A'},
+      le90:   {bg:'FDF4D3', fg:'8A6D0B'},
+      gt90:   {bg:'E3F4E9', fg:'1B6E43'},
+      missing:{bg:'ECEFF1', fg:'52636D'}
+    };
+    const NOCON_TOTAL_FILL = {bg:'DCE6EC', fg:'15333F'};
+    // 口味分组键：与明细表「可耗用口味」列完全同源；未匹配归为「未匹配口味」
+    function noconFlavorOf(r){
+      const f = isCommonSupply(r.sku) ? '共用品' : getFlavorVersionText(r.mat);
+      return (f && f !== '—') ? f : '未匹配口味';
+    }
+    function buildNoConsumeFlavorSummary(rows){
+      const order = [], map = new Map();
+      rows.forEach(r => {
+        const f = noconFlavorOf(r);
+        let o = map.get(f);
+        if(!o){
+          o = { flavor:f, mats:new Set(), batches:0, qty:0, amt:0, by:{} };
+          NOCON_SUMMARY_COLS.forEach(c => { o.by[c.key] = {qty:0, amt:0}; });
+          map.set(f, o); order.push(f);
+        }
+        const cell = o.by[r.level] || (o.by[r.level] = {qty:0, amt:0});
+        const q = Number(r.qty) || 0, a = Number(r.amt) || 0;
+        cell.qty += q; cell.amt += a;
+        o.mats.add(String(r.mat || ''));
+        o.batches += 1; o.qty += q; o.amt += a;
+      });
+      const r2 = n => Math.round(n * 100) / 100;
+      const list = order.map(f => {
+        const o = map.get(f);
+        const row = { '可耗用口味':f, '料号数':o.mats.size, '批次数':o.batches };
+        NOCON_SUMMARY_COLS.forEach(c => {
+          const cell = o.by[c.key] || {qty:0, amt:0};
+          row[c.label + '-数量'] = r2(cell.qty);
+          row[c.label + '-金额'] = r2(cell.amt);
+        });
+        row['合计-数量'] = r2(o.qty);
+        row['合计-金额'] = r2(o.amt);
+        row.__k = { qty:r2(o.qty), amt:r2(o.amt) };
+        return row;
+      });
+      // 按剩余金额降序（金额最能代表"压了多少货"）；未匹配口味置底
+      const rank = f => (f === '未匹配口味' ? 1 : 0);
+      list.sort((a, b) => rank(a['可耗用口味']) - rank(b['可耗用口味'])
+        || b.__k.amt - a.__k.amt || b.__k.qty - a.__k.qty);
+      return list;
+    }
+    function buildNoConsumeFlavorSheet(rows){
+      const list = buildNoConsumeFlavorSummary(rows);
+      const headers = ['可耗用口味','料号数','批次数'];
+      NOCON_SUMMARY_COLS.forEach(c => { headers.push(c.label + '-数量', c.label + '-金额'); });
+      headers.push('合计-数量','合计-金额');
+      const data = list.map(o => { const d = {}; headers.forEach(h => { d[h] = o[h]; }); return d; });
+      // 合计行
+      const total = { '可耗用口味':'合计' };
+      headers.forEach(h => {
+        if(h === '可耗用口味'){ return; }
+        if(h === '料号数'){ total[h] = list.reduce((s, o) => s + (Number(o[h]) || 0), 0); return; }
+        total[h] = Math.round(data.reduce((s, d) => s + (Number(d[h]) || 0), 0) * 100) / 100;
+      });
+      data.push(total);
+      const ws = XLSX.utils.json_to_sheet(data, { header: headers });
+      const integer = ['料号数','批次数'];
+      const money = headers.filter(h => h.endsWith('-数量') || h.endsWith('-金额'));
+      const center = ['料号数','批次数'];
+      const wch = [{wch:28},{wch:9},{wch:9}];
+      NOCON_SUMMARY_COLS.forEach(() => wch.push({wch:13},{wch:15}));
+      wch.push({wch:13},{wch:15});
+      ws['!cols'] = wch;
+      xlsSkin(ws, headers, { center:center, integer:integer, money:money, zebra:false, autofilter:false });
+      // 状态列淡底（与看板风险配色对应）+ 合计行强调
+      const rng = XLSX.utils.decode_range(ws['!ref']);
+      NOCON_SUMMARY_COLS.forEach(c => {
+        const fill = NOCON_SUMMARY_FILL[c.key];
+        [c.label + '-数量', c.label + '-金额'].forEach(h => {
+          const C = headers.indexOf(h);
+          for(let R = rng.s.r + 1; R <= rng.e.r; ++R){
+            const cell = ws[XLSX.utils.encode_cell({r:R, c:C})];
+            if(!cell) continue;
+            cell.s = Object.assign({}, cell.s, {
+              fill:{patternType:'solid', fgColor:{rgb:fill.bg}},
+              font:{name:XLS_FONT, sz:11, color:{rgb:fill.fg}}
+            });
+          }
+        });
+      });
+      const lastR = rng.e.r;
+      for(let C = rng.s.c; C <= rng.e.c; ++C){
+        const cell = ws[XLSX.utils.encode_cell({r:lastR, c:C})];
+        if(!cell) continue;
+        const key = headers[C];
+        const right = key && (key.endsWith('-金额') || key.endsWith('-数量') || key === '料号数' || key === '批次数');
+        cell.s = Object.assign({}, cell.s, {
+          fill:{patternType:'solid', fgColor:{rgb:NOCON_TOTAL_FILL.bg}},
+          font:{name:XLS_FONT, sz:11, bold:true, color:{rgb:NOCON_TOTAL_FILL.fg}},
+          alignment:{horizontal:(right ? 'right' : 'left'), vertical:'center'}
+        });
+      }
+      ws['!rows'] = ws['!rows'] || [];
+      ws['!rows'][rng.s.r] = {hpt:28};
+      ws['!rows'][lastR] = {hpt:22};
+      ws['!freeze'] = 'A2';
+      return ws;
+    }
+
     function exportNoConsumeDetails(){
       if(typeof XLSX === 'undefined'){ alert('Excel 导出组件尚未加载，请刷新页面后重试。'); return; }
       const rows = noconSort(noConsumeView());
@@ -2712,6 +2828,7 @@ const EMBEDDED = {"today":"2026-07-22","__sample":true,"records":[{"wh":"0001","
       });
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, '无耗用明细');
+      XLSX.utils.book_append_sheet(wb, buildNoConsumeFlavorSheet(rows), '口味-状态汇总');
       XLSX.writeFile(wb, `无耗用明细_${String(filters.date || BASE_DATE).replace(/-/g,'')}.xlsx`);
     }
     // 页面内直接上传 Excel 时现算「无耗用」口径（与系统解析器同一判定逻辑）
