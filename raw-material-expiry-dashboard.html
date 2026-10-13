@@ -2306,6 +2306,365 @@ const EMBEDDED = {"today":"2026-07-22","__sample":true,"records":[{"wh":"0001","
       if(opts.autofilter !== false) ws['!autofilter'] = {ref: ws['!ref']};
       return ws;
     }
+    /* ===== 03 批次预警明细导出附加报告：口味 / 多维度（数量·金额） ===== */
+    const RP_STATUS_COLS = [
+      { key:'expired', label:'已过期' },
+      { key:'le30',    label:'≤30天' },
+      { key:'le90',    label:'30-90天' },
+      { key:'gt90',    label:'>90天' },
+      { key:'none',    label:'无保质期' }
+    ];
+    const RP_STATUS_FILL = {
+      expired:{bg:'FBE0DD', fg:'A52714'},
+      le30:   {bg:'FCE8D6', fg:'B4521A'},
+      le90:   {bg:'FDF4D3', fg:'8A6D0B'},
+      gt90:   {bg:'E3F4E9', fg:'1B6E43'},
+      none:   {bg:'ECEFF1', fg:'52636D'}
+    };
+    const RP_TOTAL_FILL  = {bg:'DCE6EC', fg:'15333F'};
+    const RP_TITLE_FILL  = {bg:'15333F', fg:'FFFFFF'};
+    const RP_BLOCK_FILL  = {bg:'1F3B4D', fg:'FFFFFF'};
+    const RP_NOTE_FILL   = {bg:'F2F6F8', fg:'5A6B75'};
+    const RP_BAR_FG      = '2E6E9E';
+    const RP_BAR_WIDTH   = 16;
+
+    function rpRound(n){ return Math.round((Number(n) || 0) * 100) / 100; }
+    function rpStatusKey(r){
+      if(r.remDays === null || r.remDays === undefined) return 'none';
+      if(r.remDays < 0) return 'expired';
+      if(r.remDays <= 30) return 'le30';
+      if(r.remDays <= 90) return 'le90';
+      return 'gt90';
+    }
+    function rpStatusLabel(k){
+      const hit = RP_STATUS_COLS.filter(c => c.key === k)[0];
+      return hit ? hit.label : k;
+    }
+    // 口味拆解：把「一支调配液服务多口味」的料号拆成多个口味切片，
+    // 数量/金额按服务口味数均摊（share = 1/N），保证各口味行相加仍等于总库存。
+    // 共用品（白砂糖等）与未匹配口味各自单列，不参与拆分；版本号见明细「可耗用口味」列。
+    function rpFlavorSlices(r){
+      if(isCommonSupply(r.sku)) return [{ key:'共用品', share:1 }];
+      const txt = getFlavorFromBom(r.mat);
+      const uniq = [];
+      if(txt && txt !== '—'){
+        String(txt).split('、').forEach(s => {
+          const v = s.trim();
+          if(v && uniq.indexOf(v) < 0) uniq.push(v);
+        });
+      }
+      if(!uniq.length) return [{ key:'未匹配口味', share:1 }];
+      const share = 1 / uniq.length;
+      return uniq.map(s => ({ key:s, share:share }));
+    }
+    // 社区版 SheetJS 不支持数据条条件格式，用字符条做可视化（长度按该维度最大金额归一）
+    function rpBar(v, max, width){
+      width = width || RP_BAR_WIDTH;
+      const ratio = max > 0 ? Math.max(0, Math.min(1, (Number(v) || 0) / max)) : 0;
+      const n = Math.round(ratio * width);
+      return '■'.repeat(n) + '□'.repeat(Math.max(0, width - n));
+    }
+    function rpAggregate(rows, keyFn){
+      const order = [], map = new Map();
+      rows.forEach(r => {
+        const k = keyFn(r);
+        let o = map.get(k);
+        if(!o){
+          o = { key:k, mats:new Set(), batches:0, qty:0, amt:0, by:{} };
+          RP_STATUS_COLS.forEach(c => { o.by[c.key] = {qty:0, amt:0}; });
+          map.set(k, o); order.push(k);
+        }
+        const sk = rpStatusKey(r);
+        const cell = o.by[sk] || (o.by[sk] = {qty:0, amt:0});
+        const q = Number(replenishQty(r)) || 0, a = Number(r.endAmt) || 0;
+        cell.qty += q; cell.amt += a;
+        o.mats.add(String(r.mat || ''));
+        o.batches += 1; o.qty += q; o.amt += a;
+      });
+      return order.map(k => map.get(k));
+    }
+    // 口味维度聚合（一对多 + 均摊），合计与明细总额严格相等
+    function rpAggregateFlavor(rows){
+      const order = [], map = new Map();
+      rows.forEach(r => {
+        const q = Number(replenishQty(r)) || 0, a = Number(r.endAmt) || 0;
+        const sk = rpStatusKey(r);
+        rpFlavorSlices(r).forEach(sl => {
+          let o = map.get(sl.key);
+          if(!o){
+            o = { key:sl.key, mats:new Set(), batches:0, qty:0, amt:0, by:{} };
+            RP_STATUS_COLS.forEach(c => { o.by[c.key] = {qty:0, amt:0}; });
+            map.set(sl.key, o); order.push(sl.key);
+          }
+          const cell = o.by[sk] || (o.by[sk] = {qty:0, amt:0});
+          cell.qty += q * sl.share; cell.amt += a * sl.share;
+          o.mats.add(String(r.mat || ''));
+          o.batches += 1; o.qty += q * sl.share; o.amt += a * sl.share;
+        });
+      });
+      return order.map(k => map.get(k));
+    }
+    // 明细导出的实际口径行（已过滤库存金额 > 0），保证报告与明细严格对账
+    function rpExportRows(){
+      const view = replenishRows(getView());
+      return [...view].sort((a,b)=>{
+        const ra = a.remDays, rb = b.remDays;
+        if(ra === null && rb === null) return 0;
+        if(ra === null) return 1;
+        if(rb === null) return -1;
+        return ra - rb;
+      }).filter(r => Number(r.endAmt) > 0);
+    }
+
+    /* ---------- 报告一：口味 × 效期状态 ---------- */
+    function buildReplenishFlavorSheet(rows){
+      const list = rpAggregateFlavor(rows);
+      // 排序：具体口味（按金额降序）→ 共用品 → 未匹配口味，让具体口味优先呈现
+      const rpRank = k => (k === '共用品' ? 1 : (k === '未匹配口味' ? 2 : 0));
+      list.sort((a,b) => {
+        const ra = rpRank(a.key), rb = rpRank(b.key);
+        if(ra !== rb) return ra - rb;
+        return b.amt - a.amt;
+      });
+      const totAmt = list.reduce((s,o) => s + o.amt, 0);
+      let maxAmt = 0;
+      list.forEach(o => { maxAmt = Math.max(maxAmt, o.amt); });
+      const headers = ['可耗用口味','料号数','批次数'];
+      RP_STATUS_COLS.forEach(c => { headers.push(c.label + '-数量', c.label + '-金额'); });
+      headers.push('合计-数量','合计-金额','金额占比','累计金额占比','金额占比条');
+      const data = [];
+      let cum = 0;
+      list.forEach(o => {
+        const d = { '可耗用口味':o.key, '料号数':o.mats.size, '批次数':o.batches };
+        RP_STATUS_COLS.forEach(c => {
+          const cell = o.by[c.key] || {qty:0, amt:0};
+          d[c.label + '-数量'] = rpRound(cell.qty);
+          d[c.label + '-金额'] = rpRound(cell.amt);
+        });
+        d['合计-数量'] = rpRound(o.qty);
+        d['合计-金额'] = rpRound(o.amt);
+        const pct = totAmt > 0 ? o.amt / totAmt : 0;
+        cum += pct;
+        d['金额占比'] = pct;
+        d['累计金额占比'] = cum;
+        d['金额占比条'] = rpBar(o.amt, maxAmt);
+        data.push(d);
+      });
+      const total = { '可耗用口味':'合计', '料号数':new Set(rows.map(r => String(r.mat || ''))).size, '批次数':rows.length };
+      RP_STATUS_COLS.forEach(c => {
+        total[c.label + '-数量'] = rpRound(data.reduce((s,d)=>s+d[c.label + '-数量'],0));
+        total[c.label + '-金额'] = rpRound(data.reduce((s,d)=>s+d[c.label + '-金额'],0));
+      });
+      total['合计-数量'] = rpRound(data.reduce((s,d)=>s+d['合计-数量'],0));
+      total['合计-金额'] = rpRound(totAmt);
+      total['金额占比'] = 1;
+      total['累计金额占比'] = 1;
+      total['金额占比条'] = '';
+      data.push(total);
+
+      const ws = XLSX.utils.json_to_sheet(data, { header: headers });
+      const rng = XLSX.utils.decode_range(ws['!ref']);
+      ws['!cols'] = [{wch:26},{wch:8},{wch:8}];
+      RP_STATUS_COLS.forEach(() => ws['!cols'].push({wch:12},{wch:13}));
+      ws['!cols'].push({wch:14},{wch:14},{wch:11},{wch:13},{wch:19});
+      const numCols = [];
+      RP_STATUS_COLS.forEach(c => { numCols.push(c.label + '-数量', c.label + '-金额'); });
+      numCols.push('合计-数量','合计-金额');
+      xlsSkin(ws, headers, {
+        center:['料号数','批次数'],
+        integer:['料号数','批次数'],
+        money:numCols,
+        zebra:false,
+        autofilter:false
+      });
+      // 状态列淡底（与看板风险配色一致）
+      RP_STATUS_COLS.forEach(c => {
+        const fill = RP_STATUS_FILL[c.key];
+        [c.label + '-数量', c.label + '-金额'].forEach(h => {
+          const C = headers.indexOf(h);
+          for(let R = rng.s.r + 1; R <= rng.e.r; ++R){
+            const cell = ws[XLSX.utils.encode_cell({r:R, c:C})];
+            if(!cell) continue;
+            cell.s = Object.assign({}, cell.s, {
+              fill:{patternType:'solid', fgColor:{rgb:fill.bg}},
+              font:{name:XLS_FONT, sz:11, color:{rgb:fill.fg}}
+            });
+          }
+        });
+      });
+      // 占比列：百分比格式 + 右对齐
+      ['金额占比','累计金额占比'].forEach(h => {
+        const C = headers.indexOf(h);
+        for(let R = rng.s.r + 1; R <= rng.e.r; ++R){
+          const cell = ws[XLSX.utils.encode_cell({r:R, c:C})];
+          if(!cell || typeof cell.v !== 'number') continue;
+          cell.z = '0.0%';
+          cell.s = Object.assign({}, cell.s, { alignment:{horizontal:'right', vertical:'center'} });
+        }
+      });
+      // 可视条列
+      {
+        const C = headers.indexOf('金额占比条');
+        for(let R = rng.s.r + 1; R <= rng.e.r; ++R){
+          const cell = ws[XLSX.utils.encode_cell({r:R, c:C})];
+          if(!cell) continue;
+          cell.s = Object.assign({}, cell.s, { font:{name:XLS_FONT, sz:11, color:{rgb:RP_BAR_FG}} });
+        }
+      }
+      // 合计行强调
+      const lastR = rng.e.r;
+      for(let C = rng.s.c; C <= rng.e.c; ++C){
+        const cell = ws[XLSX.utils.encode_cell({r:lastR, c:C})];
+        if(!cell) continue;
+        cell.s = Object.assign({}, cell.s, {
+          fill:{patternType:'solid', fgColor:{rgb:RP_TOTAL_FILL.bg}},
+          font:{name:XLS_FONT, sz:11, bold:true, color:{rgb:RP_TOTAL_FILL.fg}}
+        });
+      }
+      ws['!rows'] = ws['!rows'] || [];
+      ws['!rows'][rng.s.r] = {hpt:30};
+      ws['!rows'][lastR] = {hpt:20};
+      return ws;
+    }
+
+    /* ---------- 报告二：多维度分区块 ---------- */
+    function buildReplenishDimensionSheet(rows){
+      const cols = ['维度值','料号数','批次数'];
+      RP_STATUS_COLS.forEach(c => { cols.push(c.label + '-数量', c.label + '-金额'); });
+      cols.push('合计-数量','合计-金额','金额占比','金额占比条');
+      const NCOL = cols.length;
+
+      const aoa = [], marks = [];
+      const pushRow = (arr, type, bi) => {
+        const a = (arr || []).slice();
+        while(a.length < NCOL) a.push('');
+        aoa.push(a);
+        marks.push({ type:type, block:(bi === undefined ? -1 : bi) });
+      };
+
+      pushRow(['批次预警多维汇总报告'], 'title');
+      pushRow(['口径：数量＝批次表「库存数量＋待检库存数量＋已冻结库存数量」；金额＝批次表库存金额（元）；仅统计库存金额 > 0 的批次；同一料号的不同批次分行列示、不合并；条长按该维度最大金额归一化'], 'note');
+      pushRow(['「口味-效期状态汇总」口径：按成品口味归集（不带调配液版本号，版本见明细「可耗用口味」列）；一支调配液服务多个口味时，其数量与金额按服务口味数均摊到各口味行，因此各口味行相加仍等于总库存，不重复也不遗漏；共用品、未匹配口味各自单列'], 'note');
+      pushRow([], 'blank');
+
+      const totAmtAll = rows.reduce((s,r) => s + (Number(r.endAmt) || 0), 0);
+
+      // TOP N 收敛，避免长尾把报告冲散
+      const topN = (list, n, otherLabel) => {
+        if(list.length <= n + 1) return list;
+        const head = list.slice(0, n);
+        const rest = list.slice(n);
+        const sum = { key:otherLabel + '（' + rest.length + ' 项）', mats:new Set(), batches:0, qty:0, amt:0, by:{} };
+        RP_STATUS_COLS.forEach(c => { sum.by[c.key] = {qty:0, amt:0}; });
+        rest.forEach(o => {
+          sum.batches += o.batches; sum.qty += o.qty; sum.amt += o.amt;
+          o.mats.forEach(m => sum.mats.add(m));
+          RP_STATUS_COLS.forEach(c => { sum.by[c.key].qty += o.by[c.key].qty; sum.by[c.key].amt += o.by[c.key].amt; });
+        });
+        return head.concat([sum]);
+      };
+
+      const specs = [
+        { title:'维度一 · 按品类（金额降序）',   keyFn:r => (r.category || '未分类'), top:0 },
+        { title:'维度二 · 按供应商（金额降序）', keyFn:r => (r.supplier || '未知'),   top:25 },
+        { title:'维度三 · 按库存地点（金额降序）', keyFn:r => (r.wh || '未知'),       top:0 },
+        { title:'维度四 · 按料号（金额 TOP 25）', keyFn:r => String(r.mat || '') + ' ' + String(r.sku || ''), top:25 }
+      ];
+
+      specs.forEach((sp, bi) => {
+        let list = rpAggregate(rows, sp.keyFn);
+        list.sort((a,b) => b.amt - a.amt);
+        if(sp.top > 0) list = topN(list, sp.top, '其他');
+        let maxAmt = 0;
+        list.forEach(o => { maxAmt = Math.max(maxAmt, o.amt); });
+
+        pushRow([sp.title], 'block', bi);
+        pushRow(cols, 'header', bi);
+        list.forEach(o => {
+          const r = [o.key, o.mats.size, o.batches];
+          RP_STATUS_COLS.forEach(c => {
+            const cell = o.by[c.key] || {qty:0, amt:0};
+            r.push(rpRound(cell.qty), rpRound(cell.amt));
+          });
+          r.push(rpRound(o.qty), rpRound(o.amt), totAmtAll > 0 ? o.amt / totAmtAll : 0, rpBar(o.amt, maxAmt));
+          pushRow(r, 'data', bi);
+        });
+        // 区块合计（该维度全量）
+        const allList = rpAggregate(rows, sp.keyFn);
+        const t = ['合计', new Set(rows.map(r => String(r.mat || ''))).size, rows.length];
+        RP_STATUS_COLS.forEach(c => {
+          let q = 0, a = 0;
+          allList.forEach(o => { const cell = o.by[c.key] || {qty:0, amt:0}; q += cell.qty; a += cell.amt; });
+          t.push(rpRound(q), rpRound(a));
+        });
+        t.push(rpRound(rows.reduce((s,r) => s + (Number(replenishQty(r)) || 0), 0)), rpRound(totAmtAll), 1, '');
+        pushRow(t, 'total', bi);
+        pushRow([], 'blank', bi);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const rng = XLSX.utils.decode_range(ws['!ref']);
+      const wch = [{wch:26},{wch:8},{wch:8}];
+      RP_STATUS_COLS.forEach(() => wch.push({wch:12},{wch:13}));
+      wch.push({wch:14},{wch:14},{wch:11},{wch:17});
+      ws['!cols'] = wch;
+
+      const grid = {top:{style:'thin',color:{rgb:XLS_GRID}},bottom:{style:'thin',color:{rgb:XLS_GRID}},left:{style:'thin',color:{rgb:XLS_GRID}},right:{style:'thin',color:{rgb:XLS_GRID}}};
+      const hdrSet = new Set();
+      marks.forEach((m, R) => { if(m.type === 'header') hdrSet.add(R); });
+      const dataRowSet = new Set();
+      marks.forEach((m, R) => { if(m.type === 'data') dataRowSet.add(R); });
+      const blockRowSet = new Set();
+      marks.forEach((m, R) => { if(m.type === 'block') blockRowSet.add(R); });
+
+      const colKey = C => cols[C];
+      const isNumCol = k => !!k && (k.endsWith('-数量') || k.endsWith('-金额') || k === '料号数' || k === '批次数');
+      const statusColOf = k => {
+        for(const c of RP_STATUS_COLS){
+          if(k === c.label + '-数量' || k === c.label + '-金额') return c;
+        }
+        return null;
+      };
+
+      ws['!rows'] = [];
+      for(let R = rng.s.r; R <= rng.e.r; ++R){
+        const type = marks[R] ? marks[R].type : 'data';
+        for(let C = rng.s.c; C <= rng.e.c; ++C){
+          const ref = XLSX.utils.encode_cell({r:R, c:C});
+          const cell = ws[ref];
+          if(!cell) continue;
+          const k = colKey(C - rng.s.c);
+          if(type === 'title'){
+            cell.s = {font:{name:XLS_FONT, sz:14, bold:true, color:{rgb:RP_TITLE_FILL.fg}}, fill:{patternType:'solid', fgColor:{rgb:RP_TITLE_FILL.bg}}, alignment:{horizontal:'left', vertical:'center'}};
+          } else if(type === 'note'){
+            cell.s = {font:{name:XLS_FONT, sz:10, color:{rgb:RP_NOTE_FILL.fg}}, fill:{patternType:'solid', fgColor:{rgb:RP_NOTE_FILL.bg}}, alignment:{horizontal:'left', vertical:'center'}};
+          } else if(type === 'block'){
+            cell.s = {font:{name:XLS_FONT, sz:12, bold:true, color:{rgb:RP_BLOCK_FILL.fg}}, fill:{patternType:'solid', fgColor:{rgb:RP_BLOCK_FILL.bg}}, alignment:{horizontal:'left', vertical:'center'}};
+          } else if(type === 'header'){
+            cell.s = {font:{name:XLS_FONT, sz:11, bold:true, color:{rgb:XLS_HEAD_FG}}, fill:{patternType:'solid', fgColor:{rgb:XLS_HEAD_BG}}, alignment:{horizontal:'center', vertical:'center'}, border:grid};
+          } else if(type === 'total'){
+            cell.s = {font:{name:XLS_FONT, sz:11, bold:true, color:{rgb:RP_TOTAL_FILL.fg}}, fill:{patternType:'solid', fgColor:{rgb:RP_TOTAL_FILL.bg}}, alignment:{horizontal:(isNumCol(k) ? 'right' : 'left'), vertical:'center'}, border:grid};
+          } else {
+            const sc = statusColOf(k);
+            const st = {font:{name:XLS_FONT, sz:11, color:{rgb:XLS_TEXT}}, border:grid, alignment:{horizontal:(isNumCol(k) ? 'right' : 'left'), vertical:'center'}};
+            if(k === '金额占比条') st.font = {name:XLS_FONT, sz:11, color:{rgb:RP_BAR_FG}};
+            if(sc) st.fill = {patternType:'solid', fgColor:{rgb:RP_STATUS_FILL[sc.key].bg}};
+            if(sc) st.font = {name:XLS_FONT, sz:11, color:{rgb:RP_STATUS_FILL[sc.key].fg}};
+            cell.s = st;
+            if(k === '金额占比') cell.z = '0.0%';
+          }
+        }
+        if(type === 'title') ws['!rows'][R] = {hpt:32};
+        else if(type === 'note') ws['!rows'][R] = {hpt:22};
+        else if(type === 'block') ws['!rows'][R] = {hpt:24};
+        else if(type === 'header') ws['!rows'][R] = {hpt:28};
+        else if(type === 'blank') ws['!rows'][R] = {hpt:6};
+        else ws['!rows'][R] = {hpt:18};
+      }
+      // 表头行与区块标题行铺满底色：aoa 已生成空串单元格，此处确保右端列也有样式
+      return ws;
+    }
+
     function exportReplenishmentDetails(){
       const view = replenishRows(getView());
       const sorted = [...view].sort((a,b)=>{
@@ -2363,6 +2722,8 @@ const EMBEDDED = {"today":"2026-07-22","__sample":true,"records":[{"wh":"0001","
       });
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, '批次预警明细');
+      XLSX.utils.book_append_sheet(wb, buildReplenishFlavorSheet(exportRows), '口味-效期状态汇总');
+      XLSX.utils.book_append_sheet(wb, buildReplenishDimensionSheet(exportRows), '多维度汇总');
       XLSX.writeFile(wb, `批次预警明细_${String(filters.date||BASE_DATE).replace(/-/g,'')}.xlsx`);
     }
 
