@@ -522,7 +522,7 @@ var XLSX={};function make_xlsx_lib(a){a.version="0.18.5",a.style_version="1.2.0"
 
     <section class="replenishment-row">
       <div class="card">
-        <div class="card-title">批次预警明细 <span class="card-sub">按剩余天数升序 · 同一料号按批次分行（数量不合并） · 库存数量＝该批次 库存数量＋待检库存数量＋已冻结库存数量</span>
+        <div class="card-title">批次预警明细 <span class="card-sub">按剩余天数升序 · 同一料号按批次分行（数量不合并） · 库存数量＝该批次 库存数量＋待检库存数量＋已冻结库存数量<span id="replenish-ignore-note" style="color:var(--text-muted)"></span></span>
           <button class="btn btn-export" onclick="exportReplenishmentDetails()" style="float:right;margin-top:-4px;">导出明细</button>
         </div>
         <div class="detail-scroll">
@@ -1194,6 +1194,30 @@ const EMBEDDED = {"today":"2026-07-22","__sample":true,"records":[{"wh":"0001","
       });
     }
 
+    // ===== 03 批次预警明细：忽略清单 =====
+    // 用户口径：白砂糖属大宗原料，不做效期预警——明细表格与「导出明细」都不出现。
+    // 需要忽略更多物料时，往数组里追加物料描述关键词即可（按「包含」匹配）。
+    const REPLENISH_IGNORE_KEYWORDS = ['白砂糖'];
+    function isReplenishIgnored(r){
+      if(!r) return false;
+      const text = String(r.sku || '') + ' ' + String(r.matName || '') + ' ' + String(r.matDesc || '');
+      return REPLENISH_IGNORE_KEYWORDS.some(kw => text.indexOf(kw) >= 0);
+    }
+    // 明细渲染 / 导出明细 / 导出报告 共用的行集合：先剔除忽略清单，再交给各自的排序
+    function replenishDisplayRows(view){
+      return replenishRows(view).filter(r => !isReplenishIgnored(r));
+    }
+    // 被忽略的批次提示（挂在卡片副标题）：让「少了什么、少了多少」一目了然
+    function updateReplenishIgnoreNote(rows){
+      const el = document.getElementById('replenish-ignore-note');
+      if(!el) return;
+      const qty = rows.reduce((s, r) => s + replenishQty(r), 0);
+      const amt = rows.reduce((s, r) => s + (Number(r.endAmt) || 0), 0);
+      el.textContent = rows.length
+        ? ' · 已忽略「' + REPLENISH_IGNORE_KEYWORDS.join('、') + '」' + rows.length + ' 个批次（' + fmtNum(qty) + ' / ¥' + fmtMoney(amt) + '）'
+        : '';
+    }
+
     // ===== 03 报废预警专用口径 =====
     // 库存数量取自「批次」sheet 的 F+G+H（库存数量 / 待检库存数量 / 已冻结库存数量）；
     // 无批次表数据（例如内置示例数据）时回退到期末数量，保证不出现空白或 0。
@@ -1268,7 +1292,9 @@ const EMBEDDED = {"today":"2026-07-22","__sample":true,"records":[{"wh":"0001","
     }
 
     function renderDetail(view){
-      const sorted = [...replenishRows(view)].sort((a,b)=>{
+      // 忽略清单（白砂糖等）在此统一剔除：既不渲染，也不进入导出
+      const ignoredRows = replenishRows(view).filter(isReplenishIgnored);
+      const sorted = [...replenishDisplayRows(view)].sort((a,b)=>{
         const ra = a.remDays, rb = b.remDays;
         if(ra === null && rb === null) return 0;
         if(ra === null) return 1;
@@ -1292,6 +1318,7 @@ const EMBEDDED = {"today":"2026-07-22","__sample":true,"records":[{"wh":"0001","
           <td class="col-flavor">${flavorHtml}</td>
         </tr>`;
       }).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-muted)">无符合条件的数据</td></tr>';
+      updateReplenishIgnoreNote(ignoredRows);
     }
 
     function trafficDayLabel(days){
@@ -2406,7 +2433,7 @@ const EMBEDDED = {"today":"2026-07-22","__sample":true,"records":[{"wh":"0001","
     }
     // 明细导出的实际口径行（已过滤库存金额 > 0），保证报告与明细严格对账
     function rpExportRows(){
-      const view = replenishRows(getView());
+      const view = replenishDisplayRows(getView());
       return [...view].sort((a,b)=>{
         const ra = a.remDays, rb = b.remDays;
         if(ra === null && rb === null) return 0;
@@ -2666,7 +2693,8 @@ const EMBEDDED = {"today":"2026-07-22","__sample":true,"records":[{"wh":"0001","
     }
 
     function exportReplenishmentDetails(){
-      const view = replenishRows(getView());
+      // 与表格同一口径：忽略清单内的物料（白砂糖）不进明细 sheet，也不进两份报告 sheet
+      const view = replenishDisplayRows(getView());
       const sorted = [...view].sort((a,b)=>{
         const ra = a.remDays, rb = b.remDays;
         if(ra === null && rb === null) return 0;
